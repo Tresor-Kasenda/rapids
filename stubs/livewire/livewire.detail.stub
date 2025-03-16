@@ -1,0 +1,24 @@
+<?php
+
+namespace App\Livewire\{{ namespace }};
+
+use Livewire\Attributes\Locked;
+use App\Models\{{ model }};
+use Illuminate\Contracts\View\View;
+use Livewire\Component;
+
+class Detail{{ class }} extends Component
+{
+    #[Locked]
+    public {{ model }} ${{ model | lower }};
+
+    public function mount({{ model }} ${{ model | lower }}): void
+    {
+        $this->{{ model | lower }} = ${{ model | lower }};
+    }
+
+    public function render(): View
+    {
+        return view('livewire.{{ path }}.detail-{{ lastSegment }}');
+    }
+}

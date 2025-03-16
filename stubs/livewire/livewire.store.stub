@@ -1,0 +1,38 @@
+<?php
+
+namespace App\Livewire\{{ namespace }};
+
+use App\Models\{{ model }};
+use App\Concerns\Has{{ model }}FormSchema;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Livewire\Component;
+use Filament\Forms\Form;
+use Livewire\WithFileUploads;
+use Illuminate\Contracts\View\View;
+
+class Store{{ class }} extends Component implements HasForms
+{
+    use InteractsWithForms;
+    use WithFileUploads;
+    use Has{{ model }}FormSchema;
+
+    public ?array $data = [];
+
+    public function mount(): void
+    {
+        $this->form->fill();
+    }
+
+    public function submit(): void
+    {
+        ${{ model | lower }} = {{ model }}::create($this->form->getState());
+
+        $this->dispatch('notify', message: "{{ model }} created successfully", type: "success");
+    }
+
+    public function render(): View
+    {
+        return view('livewire.{{ path }}.store-{{ lastSegment }}');
+    }
+}

@@ -1,0 +1,58 @@
+<?php
+
+namespace App\Livewire\{{ namespace }};
+
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Tables\Actions\BulkActionGroup;
+use Filament\Tables\Actions\DeleteBulkAction;
+use Filament\Tables\Actions\EditAction;
+use Filament\Tables\Actions\ViewAction;
+use Filament\Tables\Concerns\InteractsWithTable;
+use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Actions\DeleteAction;
+use Filament\Tables\Table;
+use App\Models\{{ model }};
+use Illuminate\Contracts\View\View;
+use Livewire\Component;
+
+class Lists{{ class }} extends Component implements HasTable, HasForms
+{
+    use InteractsWithTable;
+    use InteractsWithForms;
+
+    public function table(Table $table): Table
+    {
+            return $table
+                ->query({{ model }}::query())
+                ->columns([
+                    {{ columns }}
+                ])
+                ->filters([
+
+                ])
+                ->actions([
+                    ViewAction::make()
+                        ->url(fn ({{ model }} $record): string => route('{{ lastSegment }}.show', ['{{ model | lower }}' => $record])),
+                    EditAction::make()
+                        ->url(fn ({{ model }} $record): string => route('{{ lastSegment }}.edit', ['{{ model | lower }}' => $record])),
+                    DeleteAction::make()
+                        ->action(fn ({{ model }} $record) => $record->delete())
+                        ->requiresConfirmation()
+                        ->color('danger')
+                ])
+                ->bulkActions([
+                    BulkActionGroup::make([
+                        DeleteBulkAction::make(),
+                    ]),
+                ])
+                ->emptyStateIcon('heroicon-m-bookmark')
+                ->emptyStateHeading("Aucun {{ model }} enregistrer");
+    }
+
+    public function render(): View
+    {
+        return view('livewire.{{ path }}.lists-{{ lastSegment }}');
+    }
+}
