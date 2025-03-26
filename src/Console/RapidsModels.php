@@ -1,6 +1,6 @@
 <?php
 
-namespace Rapids\Rapids\Commands;
+namespace Rapids\Rapids\Console;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
@@ -90,7 +90,13 @@ class RapidsModels extends Command
         // Get new fields for the migration
         $fields = $this->getModelsFields();
 
+        foreach ($fields as $field => &$options) {
+            $options['nullable'] = true;
+        }
+
         // Handle relations for fields ending with _id
+        unset($options);
+        // Replace the hardcoded relationship code in handleExistingModel method
         foreach ($fields as $field => $options) {
             if (str_ends_with($field, '_id')) {
                 $relatedModelName = text(
@@ -99,19 +105,60 @@ class RapidsModels extends Command
                     required: true
                 );
 
-                // Add belongsTo relation to current model
-                $this->addRelationToModel(
-                    $this->modelName,
-                    $relatedModelName,
-                    'belongsTo',
+                // Choose relationship type for current model
+                $currentModelRelation = search(
+                    label: "Select relationship type for {$this->modelName} to {$relatedModelName}",
+                    options: fn() => [
+                        'belongsTo' => 'Belongs To',
+                        'hasOne' => 'Has One',
+                        'hasMany' => 'Has Many',
+                        'belongsToMany' => 'Belongs To Many',
+                        'hasOneThrough' => 'Has One Through',
+                        'hasManyThrough' => 'Has Many Through',
+                        'morphOne' => 'Morph One',
+                        'morphMany' => 'Morph Many',
+                        'morphTo' => 'Morph To',
+                        'morphToMany' => 'Morph To Many',
+                        'morphedByMany' => 'Morphed By Many',
+                    ],
+                    placeholder: 'Select relationship type'
                 );
 
-                // Add hasMany relation to related model
-                $this->addRelationToModel(
-                    $relatedModelName,
-                    $this->modelName,
-                    'hasMany',
+                // Choose inverse relationship type for related model
+                $inverseRelation = search(
+                    label: "Select inverse relationship type for {$relatedModelName} to {$this->modelName}",
+                    options: fn() => [
+                        'hasMany' => 'Has Many',
+                        'hasOne' => 'Has One',
+                        'belongsTo' => 'Belongs To',
+                        'belongsToMany' => 'Belongs To Many',
+                        'hasOneThrough' => 'Has One Through',
+                        'hasManyThrough' => 'Has Many Through',
+                        'morphOne' => 'Morph One',
+                        'morphMany' => 'Morph Many',
+                        'morphTo' => 'Morph To',
+                        'morphToMany' => 'Morph To Many',
+                        'morphedByMany' => 'Morphed By Many',
+                        'none' => 'No inverse relation'
+                    ],
+                    placeholder: 'Select inverse relationship type'
                 );
+
+                // Add relation to current model
+                $this->addRelationToModel(
+                    $this->modelName,
+                    $relatedModelName,
+                    $currentModelRelation
+                );
+
+                // Add inverse relation if needed
+                if ($inverseRelation !== 'none') {
+                    $this->addRelationToModel(
+                        $relatedModelName,
+                        $this->modelName,
+                        $inverseRelation
+                    );
+                }
             }
         }
 
@@ -204,30 +251,70 @@ class RapidsModels extends Command
         return $fields;
     }
 
-    protected function addRelationToModel(string $modelName, string $relationType, string $methodName): void
+    protected function addRelationToModel(string $modelName, string $relatedModelName, string $relationType): void
     {
         $modelPath = app_path("Models/{$modelName}.php");
+
+        if (!File::exists($modelPath)) {
+            info("Model file not found: {$modelPath}");
+            return;
+        }
+
         $content = File::get($modelPath);
 
-        // Generate relation method
+        // Convert related model name to method name format (camelCase)
+        $methodName = Str::camel(Str::singular($relatedModelName));
+
+        // Generate relation method based on the relation type
         $relationMethod = match ($relationType) {
-            'belongsTo' => $this->generateBelongsToMethod($methodName, $modelName),
-            'hasMany' => $this->generateHasManyMethod($methodName, $modelName),
+            'belongsTo' => $this->generateBelongsToMethod($methodName, $relatedModelName),
+            'hasOne' => $this->generateHasOneMethod($methodName, $relatedModelName),
+            'hasMany' => $this->generateHasManyMethod($methodName, $relatedModelName),
+            'belongsToMany' => $this->generateBelongsToManyMethod($methodName, $relatedModelName),
+            'hasOneThrough' => $this->generateHasOneThroughMethod($methodName, $relatedModelName),
+            'hasManyThrough' => $this->generateHasManyThroughMethod($methodName, $relatedModelName),
+            'morphOne' => $this->generateMorphOneMethod($methodName, $relatedModelName),
+            'morphMany' => $this->generateMorphManyMethod($methodName, $relatedModelName),
+            'morphTo' => $this->generateMorphToMethod($methodName),
+            'morphToMany' => $this->generateMorphToManyMethod($methodName, $relatedModelName),
+            'morphedByMany' => $this->generateMorphedByManyMethod($methodName, $relatedModelName),
             default => ''
         };
 
+        if (empty($relationMethod)) {
+            info("Invalid relationship type: {$relationType}");
+            return;
+        }
+
+        // Check if method already exists in the model
+        if (str_contains($content, "function {$methodName}(")) {
+            info("Relation method {$methodName}() already exists in {$modelName} model");
+            return;
+        }
+
         // Add relation before the last closing brace
-        $content = preg_replace('/}(\s*)$/', $relationMethod . "\n}", $content);
+        $content = preg_replace('/}(\s*)$/', "\n    {$relationMethod}\n}", $content);
 
         File::put($modelPath, $content);
-        info("Added {$relationType} relation to {$modelName} model");
+        info("Added {$relationType} relation from {$modelName} to {$relatedModelName}");
     }
 
     protected function generateBelongsToMethod(string $methodName, string $model): string
     {
+        // Derive the foreign key from the method name
+        $foreignKey = Str::snake($methodName) . '_id';
+
         return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\BelongsTo\n" .
             "    {\n" .
-            "        return \$this->belongsTo({$model}::class);\n" .
+            "        return \$this->belongsTo({$model}::class, '{$foreignKey}');\n" .
+            "    }";
+    }
+
+    protected function generateHasOneMethod(string $methodName, string $model): string
+    {
+        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\HasOne\n" .
+            "    {\n" .
+            "        return \$this->hasOne({$model}::class);\n" .
             "    }";
     }
 
@@ -236,6 +323,207 @@ class RapidsModels extends Command
         return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\HasMany\n" .
             "    {\n" .
             "        return \$this->hasMany({$model}::class);\n" .
+            "    }";
+    }
+
+    protected function generateBelongsToManyMethod(string $methodName, string $model): string
+    {
+        // Generate the pivot table name in alphabetical order (Laravel convention)
+        $table1 = Str::snake(Str::singular($this->modelName));
+        $table2 = Str::snake(Str::singular($model));
+        $pivotTableName = collect([$table1, $table2])->sort()->implode('_');
+
+        // Define foreign keys
+        $foreignKey = Str::snake($this->modelName) . '_id';
+        $relatedKey = Str::snake($model) . '_id';
+
+        // Create pivot table migration if it doesn't exist
+        $this->createPivotTableMigration($pivotTableName, $foreignKey, $relatedKey, $this->modelName, $model);
+
+        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\BelongsToMany\n" .
+            "    {\n" .
+            "        return \$this->belongsToMany(\n" .
+            "            {$model}::class,\n" .
+            "            '{$pivotTableName}',\n" .
+            "            '{$foreignKey}',\n" .
+            "            '{$relatedKey}'\n" .
+            "        );\n" .
+            "    }";
+    }
+
+    protected function createPivotTableMigration(string $pivotTable, string $foreignKey, string $relatedKey, string $model1, string $model2): void
+    {
+        $migrationName = "create_{$pivotTable}_table";
+        $migrationPath = database_path("migrations/" . date('Y_m_d_His_') . $migrationName . '.php');
+
+        // Skip if migration already exists
+        $existingMigrations = glob(database_path('migrations/*' . $migrationName . '.php'));
+        if (!empty($existingMigrations)) {
+            info("Pivot table migration already exists for {$pivotTable}");
+            return;
+        }
+
+        // Ask if the pivot table should have additional fields
+        $hasAdditionalFields = confirm(
+            label: "Would you like to add additional fields to the {$pivotTable} pivot table?",
+            default: false
+        );
+
+        $stub = File::get(config('rapids.stubs.migration.migration'));
+
+        // Build the migration content with foreign keys
+        $fields = "\n";
+        $fields .= "\$table->foreignId('{$foreignKey}')->constrained()->cascadeOnDelete();\n";
+        $fields .= "\$table->foreignId('{$relatedKey}')->constrained()->cascadeOnDelete();\n";
+
+        // Add additional fields if requested
+        if ($hasAdditionalFields) {
+            $additionalFields = $this->getModelsFields();
+            foreach ($additionalFields as $field => $options) {
+                if (!str_ends_with($field, '_id')) {  // Skip foreign keys as we already have them
+                    if ($options['type'] === 'enum') {
+                        $values = array_map(fn($value) => "'$value'", $options['values']);
+                        $fields .= "\$table->enum('{$field}', [" . implode(', ', $values) . "])";
+                        if (!empty($options['values'])) {
+                            $fields .= "->default('{$options['values'][0]}')";
+                        }
+                    } else {
+                        $fields .= "\$table->{$options['type']}('{$field}')";
+                    }
+                    if ($options['nullable']) {
+                        $fields .= "->nullable()";
+                    }
+                    $fields .= ";\n";
+                }
+            }
+        }
+
+        $fields .= "\n";
+
+        $content = str_replace(
+            ['{{ table }}', '{{ fields }}'],
+            [$pivotTable, $fields],
+            $stub
+        );
+
+        File::put($migrationPath, $content);
+        info("Created pivot table migration for {$model1} and {$model2}");
+    }
+
+    protected function generateHasOneThroughMethod(string $methodName, string $model): string
+    {
+        // Ask for the intermediate model name
+        $intermediateModel = text(
+            label: "Enter the intermediate model name for the HasOneThrough relationship",
+            placeholder: 'e.g. Car for a Mechanic->Car->Owner relationship',
+            required: true
+        );
+
+        // Optionally ask for foreign keys if they're non-standard
+        $foreignKey = text(
+            label: "Enter the foreign key on the intermediate model (or leave empty for default)",
+            placeholder: "e.g. mechanic_id"
+        );
+
+        $secondForeignKey = text(
+            label: "Enter the foreign key on the target model (or leave empty for default)",
+            placeholder: "e.g. car_id"
+        );
+
+        $localKey = text(
+            label: "Enter the local key on this model (or leave empty for default)",
+            placeholder: "e.g. id"
+        );
+
+        $secondLocalKey = text(
+            label: "Enter the local key on the intermediate model (or leave empty for default)",
+            placeholder: "e.g. id"
+        );
+
+        // Build the relationship method with proper parameters
+        $code = "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\HasOneThrough\n" .
+            "    {\n" .
+            "        return \$this->hasOneThrough(\n" .
+            "            {$model}::class,\n" .
+            "            {$intermediateModel}::class";
+
+        // Add optional parameters if provided
+        if (!empty($foreignKey) || !empty($secondForeignKey) || !empty($localKey) || !empty($secondLocalKey)) {
+            if (!empty($foreignKey)) {
+                $code .= ",\n'{$foreignKey}'";
+            } else {
+                $code .= ",\nnull";
+            }
+
+            if (!empty($secondForeignKey)) {
+                $code .= ",\n'{$secondForeignKey}'";
+            } else {
+                $code .= ",\nnull";
+            }
+
+            if (!empty($localKey)) {
+                $code .= ",\n{$localKey}'";
+            } else {
+                $code .= ",\nnull";
+            }
+
+            if (!empty($secondLocalKey)) {
+                $code .= ",\n'{$secondLocalKey}'";
+            } else {
+                $code .= ",\nnull";
+            }
+        }
+
+        $code .= "\n);\n }";
+
+        return $code;
+    }
+
+    protected function generateHasManyThroughMethod(string $methodName, string $model): string
+    {
+        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\HasManyThrough\n" .
+            "    {\n" .
+            "        return \$this->hasManyThrough({$model}::class, Through::class);\n" .
+            "    }";
+    }
+
+    protected function generateMorphOneMethod(string $methodName, string $model): string
+    {
+        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphOne\n" .
+            "    {\n" .
+            "        return \$this->morphOne({$model}::class, '" . Str::snake($this->modelName) . "able');\n" .
+            "    }";
+    }
+
+    protected function generateMorphManyMethod(string $methodName, string $model): string
+    {
+        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphMany\n" .
+            "    {\n" .
+            "        return \$this->morphMany({$model}::class, '" . Str::snake($this->modelName) . "able');\n" .
+            "    }";
+    }
+
+    protected function generateMorphToMethod(string $methodName): string
+    {
+        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphTo\n" .
+            "    {\n" .
+            "        return \$this->morphTo();\n" .
+            "    }";
+    }
+
+    protected function generateMorphToManyMethod(string $methodName, string $model): string
+    {
+        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphToMany\n" .
+            "    {\n" .
+            "        return \$this->morphToMany({$model}::class, '" . Str::snake($this->modelName) . "able');\n" .
+            "    }";
+    }
+
+    protected function generateMorphedByManyMethod(string $methodName, string $model): string
+    {
+        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphedByMany\n" .
+            "    {\n" .
+            "        return \$this->morphedByMany({$model}::class, '" . Str::singular(Str::snake($methodName)) . "able');\n" .
             "    }";
     }
 
@@ -276,11 +564,19 @@ class RapidsModels extends Command
                     . ";\n";
             } else {
                 // Handle non-foreign key fields
-                $tableFields .= "\$table->{$options['type']}('{$field}')";
                 if ($options['type'] === 'enum') {
                     $values = array_map(fn($value) => "'$value'", $options['values']);
-                    $tableFields .= '->enum(' . implode(', ', $values) . ')';
+                    $tableFields .= "\$table->enum('{$field}', [" . implode(', ', $values) . "])";
+
+                    // Add default value (use first enum value as default)
+                    if (!empty($options['values'])) {
+                        $defaultValue = $options['values'][0];
+                        $tableFields .= "->default('{$defaultValue}')";
+                    }
+                } else {
+                    $tableFields .= "\$table->{$options['type']}('{$field}')";
                 }
+
                 if ($options['nullable']) {
                     $tableFields .= '->nullable()';
                 }
@@ -304,7 +600,6 @@ class RapidsModels extends Command
         $modelStub = File::get(config('rapids.stubs.migration.model'));
 
         $fillableStr = "'" . implode("', '", array_keys($fields)) . "'";
-
 
         $relations = $this->getModelRelations();
 
@@ -343,10 +638,6 @@ class RapidsModels extends Command
                 label: "Would you like to add a relationship?",
                 default: false
             );
-
-            if (!$continue) {
-                break;
-            }
 
             $relationType = search(
                 label: 'Select relationship type',
@@ -412,84 +703,6 @@ class RapidsModels extends Command
         }
 
         return implode("\n\n    ", array_filter($methods));
-    }
-
-    protected function generateMorphToMethod(string $methodName): string
-    {
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphTo\n" .
-            "    {\n" .
-            "        return \$this->morphTo();\n" .
-            "    }";
-    }
-
-    protected function generateHasOneMethod(string $methodName, string $model): string
-    {
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\HasOne\n" .
-            "    {\n" .
-            "        return \$this->hasOne({$model}::class);\n" .
-            "    }";
-    }
-
-    /**
-     * il dois prendre en compte deux table c'est a dire par exemple la table user_profession donc l'id de user et l'id de profession user_id et profession_id
-     * @param string $methodName
-     * @param string $model
-     * @return string
-     */
-    protected function generateBelongsToManyMethod(string $methodName, string $model): string
-    {
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\BelongsToMany\n" .
-            "    {\n" .
-            "        return \$this->belongsToMany({$model}::class);\n" .
-            "    }";
-    }
-
-    protected function generateHasOneThroughMethod(string $methodName, string $model): string
-    {
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\HasOneThrough\n" .
-            "    {\n" .
-            "        return \$this->hasOneThrough({$model}::class, Through::class);\n" .
-            "    }";
-    }
-
-    protected function generateHasManyThroughMethod(string $methodName, string $model): string
-    {
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\HasManyThrough\n" .
-            "    {\n" .
-            "        return \$this->hasManyThrough({$model}::class, Through::class);\n" .
-            "    }";
-    }
-
-    protected function generateMorphOneMethod(string $methodName, string $model): string
-    {
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphOne\n" .
-            "    {\n" .
-            "        return \$this->morphOne({$model}::class, '" . Str::snake($this->modelName) . "able');\n" .
-            "    }";
-    }
-
-    protected function generateMorphManyMethod(string $methodName, string $model): string
-    {
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphMany\n" .
-            "    {\n" .
-            "        return \$this->morphMany({$model}::class, '" . Str::snake($this->modelName) . "able');\n" .
-            "    }";
-    }
-
-    protected function generateMorphToManyMethod(string $methodName, string $model): string
-    {
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphToMany\n" .
-            "    {\n" .
-            "        return \$this->morphToMany({$model}::class, '" . Str::snake($this->modelName) . "able');\n" .
-            "    }";
-    }
-
-    protected function generateMorphedByManyMethod(string $methodName, string $model): string
-    {
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphedByMany\n" .
-            "    {\n" .
-            "        return \$this->morphedByMany({$model}::class, '" . Str::singular(Str::snake($methodName)) . "able');\n" .
-            "    }";
     }
 
     protected function generateMigration(array $fields): void

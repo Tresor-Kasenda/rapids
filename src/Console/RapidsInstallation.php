@@ -1,6 +1,6 @@
 <?php
 
-namespace Rapids\Rapids\Commands;
+namespace Rapids\Rapids\Console;
 
 use Illuminate\Console\Command;
 

@@ -3,8 +3,9 @@
 namespace Rapids\Rapids;
 
 use Illuminate\Support\ServiceProvider;
-use Rapids\Rapids\Commands\RapidsInstallation;
-use Rapids\Rapids\Commands\RapidsModels;
+use Rapids\Rapids\Console\RapidCrud;
+use Rapids\Rapids\Console\RapidsInstallation;
+use Rapids\Rapids\Console\RapidsModels;
 
 class RapidsServiceProvider extends ServiceProvider
 {
@@ -18,7 +19,8 @@ class RapidsServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 RapidsInstallation::class,
-                RapidsModels::class
+                RapidsModels::class,
+                RapidCrud::class,
             ]);
         }
     }
