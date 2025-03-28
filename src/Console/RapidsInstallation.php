@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Rapids\Rapids\Console;
 
 use Illuminate\Console\Command;
 
-class RapidsInstallation extends Command
+final class RapidsInstallation extends Command
 {
     protected $signature = 'rapids:install';
 

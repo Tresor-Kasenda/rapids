@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Rapids\Rapids\Console;
 
 use Illuminate\Console\Command;
@@ -7,6 +9,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Rapids\Rapids\Concerns\ModelFields;
+
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\error;
 use function Laravel\Prompts\info;
@@ -14,7 +17,7 @@ use function Laravel\Prompts\multiselect;
 use function Laravel\Prompts\select;
 use function Laravel\Prompts\text;
 
-class RapidCrud extends Command
+final class RapidCrud extends Command
 {
     protected $signature = 'generate:crud {path?} {--model=}';
 
@@ -41,9 +44,9 @@ class RapidCrud extends Command
             label: "Enter the name of Model",
             placeholder: 'e.g. admin.users',
             required: true,
-            validate: fn(string $value) => match (true) {
-                strlen($value) < 3 => 'The path must be at least 3 characters.',
-                !str_contains($value, '.') => 'The path must contain at least one dot (e.g. admin.users)',
+            validate: fn (string $value) => match (true) {
+                mb_strlen($value) < 3 => 'The path must be at least 3 characters.',
+                ! str_contains($value, '.') => 'The path must contain at least one dot (e.g. admin.users)',
                 default => null
             }
         );
@@ -51,14 +54,12 @@ class RapidCrud extends Command
         // Get all PHP files in Models directory
         $modelPath = app_path('Models');
         $modelFiles = array_map(
-            fn($file) => pathinfo($file, PATHINFO_FILENAME),
-            glob($modelPath . '/*.php')
+            fn ($file) => pathinfo($file, PATHINFO_FILENAME),
+            glob($modelPath.'/*.php')
         );
 
         // Filter existing models
-        $availableModels = array_filter($modelFiles, function ($model) {
-            return class_exists("App\\Models\\{$model}");
-        });
+        $availableModels = array_filter($modelFiles, fn ($model) => class_exists("App\\Models\\{$model}"));
 
         // Allow creating new model if none exist
         if (empty($availableModels)) {
@@ -70,9 +71,9 @@ class RapidCrud extends Command
             label: 'Enter model name (existing or new)',
             placeholder: 'e.g. User, Post, Product',
             required: true,
-            validate: fn(string $value) => match (true) {
-                strlen($value) < 2 => 'The model name must be at least 2 characters.',
-                !preg_match('/^[A-Za-z]+$/', $value) => 'The model name must contain only letters.',
+            validate: fn (string $value) => match (true) {
+                mb_strlen($value) < 2 => 'The model name must be at least 2 characters.',
+                ! preg_match('/^[A-Za-z]+$/', $value) => 'The model name must contain only letters.',
                 default => null
             }
         );
@@ -80,7 +81,7 @@ class RapidCrud extends Command
         $this->modelName = ucfirst($modelName);
 
         // Check if model exists
-        if (!class_exists("App\\Models\\{$this->modelName}")) {
+        if ( ! class_exists("App\\Models\\{$this->modelName}")) {
             if (confirm(
                 label: "Model {$this->modelName} doesn't exist. Would you like to create it?",
                 default: true
@@ -130,8 +131,8 @@ class RapidCrud extends Command
             'composer dump-autoload',
         ];
 
-        collect($commands)->each(function ($command) {
-            if ($command === 'composer dump-autoload') {
+        collect($commands)->each(function ($command): void {
+            if ('composer dump-autoload' === $command) {
                 info('Running composer dump-autoload...');
                 exec('composer dump-autoload');
             } else {
@@ -155,7 +156,7 @@ class RapidCrud extends Command
         }
 
         $model = "App\\Models\\{$this->modelName}";
-        $instance = new $model;
+        $instance = new $model();
         $table = $instance->getTable();
         $columns = [];
 
@@ -165,10 +166,10 @@ class RapidCrud extends Command
                 $relationName = Str::beforeLast($field, '_id');
                 $displayField = $this->relationFields[$field];
 
-                $columns[] = "TextColumn::make('{$relationName}.{$displayField}')\n" .
-                    "                        ->label('" . Str::title(str_replace('_', ' ', $relationName)) . "')\n" .
-                    "                        ->searchable()\n" .
-                    "                        ->sortable()\n" .
+                $columns[] = "TextColumn::make('{$relationName}.{$displayField}')\n".
+                    "                        ->label('".Str::title(str_replace('_', ' ', $relationName))."')\n".
+                    "                        ->searchable()\n".
+                    "                        ->sortable()\n".
                     "                        ->toggleable(isToggledHiddenByDefault: false)";
                 continue;
             }
@@ -178,61 +179,61 @@ class RapidCrud extends Command
 
             // Génération de la colonne en fonction du type
             $column = match ($columnType) {
-                'boolean' => "IconColumn::make('{$field}')\n" .
-                    "                        ->label('" . Str::title(str_replace('_', ' ', $field)) . "')\n" .
-                    "                        ->boolean()\n" .
-                    "                        ->sortable()\n" .
+                'boolean' => "IconColumn::make('{$field}')\n".
+                    "                        ->label('".Str::title(str_replace('_', ' ', $field))."')\n".
+                    "                        ->boolean()\n".
+                    "                        ->sortable()\n".
                     "                        ->toggleable(isToggledHiddenByDefault: false)",
 
-                'date' => "DateColumn::make('{$field}')\n" .
-                    "                        ->label('" . Str::title(str_replace('_', ' ', $field)) . "')\n" .
-                    "                        ->date('d-m-Y')\n" .
-                    "                        ->sortable()\n" .
+                'date' => "DateColumn::make('{$field}')\n".
+                    "                        ->label('".Str::title(str_replace('_', ' ', $field))."')\n".
+                    "                        ->date('d-m-Y')\n".
+                    "                        ->sortable()\n".
                     "                        ->toggleable(isToggledHiddenByDefault: false)",
 
-                'datetime' => "DatetimeColumn::make('{$field}')\n" .
-                    "                        ->label('" . Str::title(str_replace('_', ' ', $field)) . "')\n" .
-                    "                        ->dateTime('d-m-Y H:i')\n" .
-                    "                        ->sortable()\n" .
+                'datetime' => "DatetimeColumn::make('{$field}')\n".
+                    "                        ->label('".Str::title(str_replace('_', ' ', $field))."')\n".
+                    "                        ->dateTime('d-m-Y H:i')\n".
+                    "                        ->sortable()\n".
                     "                        ->toggleable(isToggledHiddenByDefault: false)",
 
-                'decimal', 'float', 'double' => "TextColumn::make('{$field}')\n" .
-                    "                        ->label('" . Str::title(str_replace('_', ' ', $field)) . "')\n" .
-                    "                        ->numeric()\n" .
-                    "                        ->sortable()\n" .
+                'decimal', 'float', 'double' => "TextColumn::make('{$field}')\n".
+                    "                        ->label('".Str::title(str_replace('_', ' ', $field))."')\n".
+                    "                        ->numeric()\n".
+                    "                        ->sortable()\n".
                     "                        ->toggleable(isToggledHiddenByDefault: false)",
 
-                'integer', 'bigint' => "TextColumn::make('{$field}')\n" .
-                    "                        ->label('" . Str::title(str_replace('_', ' ', $field)) . "')\n" .
-                    "                        ->numeric()\n" .
-                    "                        ->sortable()\n" .
+                'integer', 'bigint' => "TextColumn::make('{$field}')\n".
+                    "                        ->label('".Str::title(str_replace('_', ' ', $field))."')\n".
+                    "                        ->numeric()\n".
+                    "                        ->sortable()\n".
                     "                        ->toggleable(isToggledHiddenByDefault: false)",
 
-                'enum' => "BadgeColumn::make('{$field}')\n" .
-                    "                        ->label('" . Str::title(str_replace('_', ' ', $field)) . "')\n" .
-                    "                        ->enum([\n" .
-                    "                            // Add your enum values here\n" .
-                    "                        ])\n" .
-                    "                        ->sortable()\n" .
+                'enum' => "BadgeColumn::make('{$field}')\n".
+                    "                        ->label('".Str::title(str_replace('_', ' ', $field))."')\n".
+                    "                        ->enum([\n".
+                    "                            // Add your enum values here\n".
+                    "                        ])\n".
+                    "                        ->sortable()\n".
                     "                        ->toggleable(isToggledHiddenByDefault: false)",
 
-                default => "TextColumn::make('{$field}')\n" .
-                    "                        ->label('" . Str::title(str_replace('_', ' ', $field)) . "')\n" .
-                    "                        ->searchable()\n" .
-                    "                        ->sortable()\n" .
+                default => "TextColumn::make('{$field}')\n".
+                    "                        ->label('".Str::title(str_replace('_', ' ', $field))."')\n".
+                    "                        ->searchable()\n".
+                    "                        ->sortable()\n".
                     "                        ->toggleable(isToggledHiddenByDefault: false)",
             };
 
             // Gestion spéciale des champs image/fichier basée sur le nom
             if (Str::contains($field, ['image', 'photo', 'avatar', 'picture'])) {
-                $column = "ImageColumn::make('{$field}')\n" .
-                    "                        ->label('" . Str::title(str_replace('_', ' ', $field)) . "')\n" .
-                    "                        ->circular()\n" .
+                $column = "ImageColumn::make('{$field}')\n".
+                    "                        ->label('".Str::title(str_replace('_', ' ', $field))."')\n".
+                    "                        ->circular()\n".
                     "                        ->toggleable(isToggledHiddenByDefault: false)";
             } elseif (Str::contains($field, ['file', 'document', 'pdf'])) {
-                $column = "TextColumn::make('{$field}')\n" .
-                    "                        ->label('" . Str::title(str_replace('_', ' ', $field)) . "')\n" .
-                    "                        ->icon('heroicon-o-document')\n" .
+                $column = "TextColumn::make('{$field}')\n".
+                    "                        ->label('".Str::title(str_replace('_', ' ', $field))."')\n".
+                    "                        ->icon('heroicon-o-document')\n".
                     "                        ->toggleable(isToggledHiddenByDefault: false)";
             }
 
@@ -244,7 +245,7 @@ class RapidCrud extends Command
 
     protected function selectFormFields(): array
     {
-        info('Configuring form fields for ' . $this->modelName);
+        info('Configuring form fields for '.$this->modelName);
 
         // Get fields excluding common system fields
         $availableFields = array_diff($this->selectedFields, ['id', 'created_at', 'updated_at', 'deleted_at']);
@@ -253,7 +254,7 @@ class RapidCrud extends Command
         return multiselect(
             label: "Select fields to include in the {$this->modelName} form",
             options: collect($availableFields)
-                ->mapWithKeys(fn($field) => [$field => Str::title(str_replace('_', ' ', $field))])
+                ->mapWithKeys(fn ($field) => [$field => Str::title(str_replace('_', ' ', $field))])
                 ->all(),
             default: $availableFields,
             required: true
@@ -317,14 +318,22 @@ class RapidCrud extends Command
                     $validations[] = 'numeric';
                     $min = confirm("Add minimum value limit?") ? text("Enter minimum value:") : null;
                     $max = confirm("Add maximum value limit?") ? text("Enter maximum value:") : null;
-                    if ($min !== null) $validations[] = "min:{$min}";
-                    if ($max !== null) $validations[] = "max:{$max}";
+                    if (null !== $min) {
+                        $validations[] = "min:{$min}";
+                    }
+                    if (null !== $max) {
+                        $validations[] = "max:{$max}";
+                    }
                     break;
                 case 'text':
                     $minChars = confirm("Add minimum length limit?") ? text("Enter minimum characters:") : null;
                     $maxChars = confirm("Add maximum length limit?") ? text("Enter maximum characters:", default: "255") : "255";
-                    if ($minChars !== null) $validations[] = "min:{$minChars}";
-                    if ($maxChars !== null) $validations[] = "max:{$maxChars}";
+                    if (null !== $minChars) {
+                        $validations[] = "min:{$minChars}";
+                    }
+                    if (null !== $maxChars) {
+                        $validations[] = "max:{$maxChars}";
+                    }
                     break;
             }
 
@@ -348,7 +357,7 @@ class RapidCrud extends Command
     protected function determineFieldType(string $field): string
     {
         $model = "App\\Models\\{$this->modelName}";
-        $instance = new $model;
+        $instance = new $model();
         $table = $instance->getTable();
         $columnType = Schema::getColumnType($table, $field);
 
@@ -370,7 +379,7 @@ class RapidCrud extends Command
         ];
 
         foreach ($patterns as $pattern => $type) {
-            if (preg_match('/(' . $pattern . ')/i', $field)) {
+            if (preg_match('/('.$pattern.')/i', $field)) {
                 return $type;
             }
         }
@@ -402,8 +411,8 @@ class RapidCrud extends Command
                 'date' => "Forms\Components\DatePicker::make('{$name}')",
                 'dateTime' => "Forms\Components\DateTimePicker::make('{$name}')",
                 'file' => "Forms\Components\FileUpload::make('{$name}')"
-                    . "->disk('public')"
-                    . "->directory('" . Str::plural(Str::snake($this->modelName)) . "')",
+                    ."->disk('public')"
+                    ."->directory('".Str::plural(Str::snake($this->modelName))."')",
                 'number' => "Forms\Components\TextInput::make('{$name}')->numeric()",
                 'email' => "Forms\Components\TextInput::make('{$name}')->email()",
                 'password' => "Forms\Components\TextInput::make('{$name}')->password()->autocomplete('new-password')",
@@ -422,17 +431,17 @@ class RapidCrud extends Command
 
             // Add other validations
             foreach ($config['validation'] as $rule) {
-                if ($rule !== 'required' && $rule !== 'nullable') {
+                if ('required' !== $rule && 'nullable' !== $rule) {
                     if (str_starts_with($rule, 'min:')) {
-                        $min = substr($rule, 4);
-                        if ($config['type'] === 'number') {
+                        $min = mb_substr($rule, 4);
+                        if ('number' === $config['type']) {
                             $fieldCode .= "->minValue({$min})";
                         } else {
                             $fieldCode .= "->minLength({$min})";
                         }
                     } elseif (str_starts_with($rule, 'max:')) {
-                        $max = substr($rule, 4);
-                        if ($config['type'] === 'number') {
+                        $max = mb_substr($rule, 4);
+                        if ('number' === $config['type']) {
                             $fieldCode .= "->maxValue({$max})";
                         } else {
                             $fieldCode .= "->maxLength({$max})";
@@ -453,18 +462,18 @@ class RapidCrud extends Command
 
     protected function generateSelectField(string $name, array $config): string
     {
-        if (!isset($config['relation'])) {
+        if ( ! isset($config['relation'])) {
             return "Forms\Components\Select::make('{$name}')";
         }
 
         $relation = $config['relation'];
         $displayField = $config['display_field'] ?? 'name';
-        $relationClass = "App\\Models\\" . Str::studly($relation);
+        $relationClass = "App\\Models\\".Str::studly($relation);
 
         return "Forms\Components\Select::make('{$name}')"
-            . "\n                    ->relationship('{$relation}', '{$displayField}')"
-            . "\n                    ->searchable()"
-            . "\n                    ->preload()";
+            ."\n                    ->relationship('{$relation}', '{$displayField}')"
+            ."\n                    ->searchable()"
+            ."\n                    ->preload()";
     }
 
     protected function generateFormTrait(string $formFields): void
@@ -498,7 +507,7 @@ class RapidCrud extends Command
     }
     PHP;
 
-        File::put($traitsDir . "/Has{$this->modelName}FormSchema.php", $traitContent);
+        File::put($traitsDir."/Has{$this->modelName}FormSchema.php", $traitContent);
     }
 
     protected function generateCrudFiles($path): void
@@ -506,24 +515,24 @@ class RapidCrud extends Command
         $segments = explode('.', $path);
         $lastSegment = ucfirst(end($segments));
         $namespaceParts = array_map('ucfirst', explode('.', $path));
-        $basePath = app_path('Livewire/' . implode('/', $namespaceParts));
+        $basePath = app_path('Livewire/'.implode('/', $namespaceParts));
         File::ensureDirectoryExists($basePath);
 
         $files = [
-            'Lists' . $lastSegment,
-            'Store' . $lastSegment,
-            'Update' . $lastSegment,
-            'Detail' . $lastSegment
+            'Lists'.$lastSegment,
+            'Store'.$lastSegment,
+            'Update'.$lastSegment,
+            'Detail'.$lastSegment
         ];
 
         foreach ($files as $file) {
-            $filePath = $basePath . '/' . $file . '.php';
+            $filePath = $basePath.'/'.$file.'.php';
 
-            $stubType = strtolower(preg_replace('/[A-Z][a-z]+$/', '', $file));
-            $stubPath = base_path('stubs/livewire/livewire.' . $stubType . '.stub');
+            $stubType = mb_strtolower(preg_replace('/[A-Z][a-z]+$/', '', $file));
+            $stubPath = base_path('stubs/livewire/livewire.'.$stubType.'.stub');
 
-            if (!File::exists($stubPath)) {
-                $this->error("Stub file not found: $stubPath");
+            if ( ! File::exists($stubPath)) {
+                $this->error("Stub file not found: {$stubPath}");
                 continue;
             }
 
@@ -531,15 +540,15 @@ class RapidCrud extends Command
 
             // Replace namespace with capitalized path
             $stubContent = str_replace('{{ namespace }}', implode('\\', $namespaceParts), $stubContent);
-            $viewPath = strtolower(implode('.', explode('.', $path)));
+            $viewPath = mb_strtolower(implode('.', explode('.', $path)));
             $stubContent = str_replace('{{ path }}', $viewPath, $stubContent);
             $stubContent = str_replace('{{ model }}', $this->modelName, $stubContent);
             $stubContent = str_replace('{{ model | lower }}', Str::camel($this->modelName), $stubContent);
             $stubContent = str_replace('{{ class }}', $lastSegment, $stubContent);
-            $stubContent = str_replace('{{ lastSegment }}', strtolower($lastSegment), $stubContent);
+            $stubContent = str_replace('{{ lastSegment }}', mb_strtolower($lastSegment), $stubContent);
 
 
-            if ($stubType === 'lists') {
+            if ('lists' === $stubType) {
                 $stubContent = str_replace('{{ columns }}', $this->generateColumns(), $stubContent);
             }
 
@@ -578,7 +587,7 @@ class RapidCrud extends Command
     {
         $modelVariable = Str::camel($this->modelName);
         $modelTitle = Str::title(Str::snake($this->modelName, ' '));
-        $actionTitle = $action === 'store' ? 'Create' : 'Update';
+        $actionTitle = 'store' === $action ? 'Create' : 'Update';
 
         return <<<BLADE
     <div>
@@ -698,7 +707,7 @@ class RapidCrud extends Command
     protected function addRoutesToWeb($path): void
     {
         $segments = explode('.', $path);
-        $lastSegment = strtolower(end($segments));
+        $lastSegment = mb_strtolower(end($segments));
         $routePath = base_path('routes/web.php');
 
         $namespaceParts = array_map('ucfirst', explode('.', $path));
@@ -707,11 +716,11 @@ class RapidCrud extends Command
         // Get model variable name in lowercase
         $modelVariable = Str::camel(Str::singular($this->modelName));
 
-        $routeContent = "\nRoute::group(['prefix' => '" . $lastSegment . "', 'as' => '" . $lastSegment . ".'], function (): void {\n" .
-            "    Route::get('/', [App\\Livewire\\{$namespacePath}\\Lists" . ucfirst($lastSegment) . "::class])->name('$lastSegment.index');\n" .
-            "    Route::get('/create', [App\\Livewire\\{$namespacePath}\\Store" . ucfirst($lastSegment) . "::class])->name('$lastSegment.create');\n" .
-            "    Route::get('/{{$modelVariable}}/edit', [App\\Livewire\\{$namespacePath}\\Update" . ucfirst($lastSegment) . "::class])->name('$lastSegment.edit');\n" .
-            "    Route::get('/{{$modelVariable}}', [App\\Livewire\\{$namespacePath}\\Detail" . ucfirst($lastSegment) . "::class])->name('$lastSegment.show');\n" .
+        $routeContent = "\nRoute::group(['prefix' => '".$lastSegment."', 'as' => '".$lastSegment.".'], function (): void {\n".
+            "    Route::get('/', [App\\Livewire\\{$namespacePath}\\Lists".ucfirst($lastSegment)."::class])->name('{$lastSegment}.index');\n".
+            "    Route::get('/create', [App\\Livewire\\{$namespacePath}\\Store".ucfirst($lastSegment)."::class])->name('{$lastSegment}.create');\n".
+            "    Route::get('/{{$modelVariable}}/edit', [App\\Livewire\\{$namespacePath}\\Update".ucfirst($lastSegment)."::class])->name('{$lastSegment}.edit');\n".
+            "    Route::get('/{{$modelVariable}}', [App\\Livewire\\{$namespacePath}\\Detail".ucfirst($lastSegment)."::class])->name('{$lastSegment}.show');\n".
             "});\n";
 
         File::append($routePath, $routeContent);
