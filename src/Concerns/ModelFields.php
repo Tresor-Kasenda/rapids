@@ -5,85 +5,79 @@ declare(strict_types=1);
 namespace Rapids\Rapids\Concerns;
 
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
-use Rapids\Rapids\Console\RapidCrud;
-
-use function Laravel\Prompts\multiselect;
+use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\search;
+use function Laravel\Prompts\text;
 
 final class ModelFields
 {
-    private array $relationFields = [];
-
-    public function __construct(
-        private readonly RapidCrud $rapidCrud
-    ) {
-    }
-
-    public function getModelFields(): array
+    public static function generateModelFields(string $modelName): array
     {
-        // Run composer dump-autoload before accessing the model
-        if ( ! class_exists("App\\Models\\{$this->rapidCrud->getModelName()}")) {
-            $this->rapidCrud->refreshApplication();
+        $fields = [];
+        $continue = true;
+        $existingFields = [];
 
-            if ( ! class_exists("App\\Models\\{$this->rapidCrud->getModelName()}")) {
-                $this->rapidCrud->line("<fg=red>Model {$this->rapidCrud->getModelName()} could not be loaded.</>");
-                $this->rapidCrud->line("<fg=yellow>Please select a different model.</>");
+        if (class_exists("App\\Models\\{$modelName}")) {
+            $model = "App\\Models\\{$modelName}";
+            $instance = new $model();
+            $existingFields = Schema::getColumnListing($instance->getTable());
+        }
 
-                // Ask user to select another model
-                $this->rapidCrud->askForModelName();
+        while ($continue) {
+            $fieldName = text(
+                label: 'Enter field name (or press enter to finish)',
+                placeholder: 'e.g. name, email, phone',
+            );
 
-                // Recursively call getModelFields with the new model
-                return $this->getModelFields();
+            if (empty($fieldName)) {
+                break;
+            }
+
+            // Check if field already exists in model
+            if (in_array($fieldName, $existingFields)) {
+                info("Field '{$fieldName}' already exists in the model.");
+                continue;
+            }
+
+            $fieldType = search(
+                label: 'Select field type',
+                options: fn() => [
+                    'string' => 'String',
+                    'text' => 'Text',
+                    'integer' => 'Integer',
+                    'bigInteger' => 'Big Integer',
+                    'float' => 'Float',
+                    'decimal' => 'Decimal',
+                    'boolean' => 'Boolean',
+                    'date' => 'Date',
+                    'datetime' => 'DateTime',
+                    'timestamp' => 'Timestamp',
+                    'json' => 'JSON',
+                    'enum' => 'Enum',
+                    'uuid' => 'UUID',
+                ],
+                placeholder: 'Select field type'
+            );
+
+            $nullable = confirm(
+                label: "Is this field nullable?",
+                default: false
+            );
+
+            $fields[$fieldName] = [
+                'type' => $fieldType,
+                'nullable' => $nullable
+            ];
+
+            if ('enum' === $fieldType) {
+                $values = text(
+                    label: 'Enter enum values (comma-separated)',
+                    placeholder: 'e.g. draft,published,archived'
+                );
+                $fields[$fieldName]['values'] = array_map('trim', explode(',', $values));
             }
         }
 
-        $model = "App\\Models\\{$this->rapidCrud->getModelName()}";
-        $instance = new $model();
-
-        // Get table columns instead of just fillable
-        $columns = Schema::getColumnListing($instance->getTable());
-
-        // Store relation fields information
-        $this->rapidCrud->setRelationFields([]);
-
-        // Show all fields and let user select them
-        $selectedFields = multiselect(
-            label: "Select fields to display for {$this->rapidCrud->getModelName()}",
-            options: collect($columns)
-                ->mapWithKeys(fn ($field) => [$field => Str::title($field)])
-                ->all(),
-            required: true
-        );
-
-        // Handle relations
-        foreach ($selectedFields as $field) {
-            if (str_ends_with($field, '_id')) {
-                $relationName = Str::beforeLast($field, '_id');
-                $relationClass = "App\\Models\\".Str::studly($relationName);
-
-                if (class_exists($relationClass)) {
-                    $relationInstance = new $relationClass();
-                    $relationColumns = Schema::getColumnListing($relationInstance->getTable());
-
-                    $options = collect($relationColumns)
-                        ->mapWithKeys(fn ($field) => [$field => Str::title($field)])
-                        ->all();
-
-                    info("Selecting display field for {$relationName} relation...");
-
-                    $displayField = search(
-                        label: "Select display field for ".Str::title($relationName),
-                        options: fn () => $options,
-                        placeholder: 'Select a field to display'
-                    );
-
-                    $this->relationFields[$field] = $displayField;
-                }
-            }
-        }
-
-        $this->rapidCrud->setSelectedFields($selectedFields);
-        return $this->rapidCrud->getSelectedFields();
+        return $fields;
     }
 }

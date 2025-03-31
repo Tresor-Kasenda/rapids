@@ -8,8 +8,8 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Rapids\Rapids\Concerns\ModelFields;
 use RuntimeException;
-
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\search;
@@ -34,20 +34,20 @@ final class RapidsModels extends Command
         // Get all PHP files in Models directory
         $modelPath = app_path('Models');
         $modelFiles = array_map(
-            fn ($file) => pathinfo($file, PATHINFO_FILENAME),
-            glob($modelPath.'/*.php')
+            fn($file) => pathinfo($file, PATHINFO_FILENAME),
+            glob($modelPath . '/*.php')
         );
 
         // Filter existing models
-        $availableModels = array_filter($modelFiles, fn ($model) => class_exists("App\\Models\\{$model}"));
+        $availableModels = array_filter($modelFiles, fn($model) => class_exists("App\\Models\\{$model}"));
 
         $modelName = $this->argument('name') ?? text(
             label: 'Enter model name (without "App\\Models\\")',
             placeholder: 'e.g. User, Post, Product',
             required: true,
-            validate: fn (string $value) => match (true) {
+            validate: fn(string $value) => match (true) {
                 mb_strlen($value) < 2 => 'The model name must be at least 2 characters.',
-                ! preg_match('/^[A-Za-z]+$/', $value) => 'The model name must contain only letters.',
+                !preg_match('/^[A-Za-z]+$/', $value) => 'The model name must contain only letters.',
                 default => null
             }
         );
@@ -57,7 +57,7 @@ final class RapidsModels extends Command
 
             $choice = search(
                 label: 'What would you like to do?',
-                options: fn () => [
+                options: fn() => [
                     'new' => 'Enter a different model name',
                     'migration' => 'Add new migration for existing model',
                     'cancel' => 'Cancel operation'
@@ -89,7 +89,7 @@ final class RapidsModels extends Command
         info("Adding new migration for {$modelName}");
 
         // Get new fields for the migration
-        $fields = $this->getModelsFields();
+        $fields = ModelFields::generateModelFields($modelName);
 
         foreach ($fields as $field => &$options) {
             $options['nullable'] = true;
@@ -109,7 +109,7 @@ final class RapidsModels extends Command
                 // Choose relationship type for current model
                 $currentModelRelation = search(
                     label: "Select relationship type for {$this->modelName} to {$relatedModelName}",
-                    options: fn () => [
+                    options: fn() => [
                         'belongsTo' => 'Belongs To',
                         'hasOne' => 'Has One',
                         'hasMany' => 'Has Many',
@@ -128,7 +128,7 @@ final class RapidsModels extends Command
                 // Choose inverse relationship type for related model
                 $inverseRelation = search(
                     label: "Select inverse relationship type for {$relatedModelName} to {$this->modelName}",
-                    options: fn () => [
+                    options: fn() => [
                         'hasMany' => 'Has Many',
                         'hasOne' => 'Has One',
                         'belongsTo' => 'Belongs To',
@@ -164,8 +164,8 @@ final class RapidsModels extends Command
         }
 
         // Generate migration
-        $migrationName = 'add_fields_to_'.Str::snake(Str::pluralStudly($modelName)).'_table';
-        $migrationFile = database_path("migrations/".date('Y_m_d_His_').$migrationName.'.php');
+        $migrationName = 'add_fields_to_' . Str::snake(Str::pluralStudly($modelName)) . '_table';
+        $migrationFile = database_path("migrations/" . date('Y_m_d_His_') . $migrationName . '.php');
 
         $stub = File::get(config('rapids.stubs.migration.alter'));
         $tableFields = $this->generateMigrationFields($fields);
@@ -181,82 +181,11 @@ final class RapidsModels extends Command
         $this->call('migrate');
     }
 
-    protected function getModelsFields(): array
-    {
-        $fields = [];
-        $continue = true;
-
-        // Get existing fields if model exists
-        $existingFields = [];
-        if (class_exists("App\\Models\\{$this->modelName}")) {
-            $model = "App\\Models\\{$this->modelName}";
-            $instance = new $model();
-            $existingFields = Schema::getColumnListing($instance->getTable());
-        }
-
-        while ($continue) {
-            $fieldName = text(
-                label: 'Enter field name (or press enter to finish)',
-                placeholder: 'e.g. name, email, phone',
-            );
-
-            if (empty($fieldName)) {
-                break;
-            }
-
-            // Check if field already exists in model
-            if (in_array($fieldName, $existingFields)) {
-                info("Field '{$fieldName}' already exists in the model.");
-                continue;
-            }
-
-            $fieldType = search(
-                label: 'Select field type',
-                options: fn () => [
-                    'string' => 'String',
-                    'text' => 'Text',
-                    'integer' => 'Integer',
-                    'bigInteger' => 'Big Integer',
-                    'float' => 'Float',
-                    'decimal' => 'Decimal',
-                    'boolean' => 'Boolean',
-                    'date' => 'Date',
-                    'datetime' => 'DateTime',
-                    'timestamp' => 'Timestamp',
-                    'json' => 'JSON',
-                    'enum' => 'Enum',
-                    'uuid' => 'UUID',
-                ],
-                placeholder: 'Select field type'
-            );
-
-            $nullable = confirm(
-                label: "Is this field nullable?",
-                default: false
-            );
-
-            $fields[$fieldName] = [
-                'type' => $fieldType,
-                'nullable' => $nullable
-            ];
-
-            if ('enum' === $fieldType) {
-                $values = text(
-                    label: 'Enter enum values (comma-separated)',
-                    placeholder: 'e.g. draft,published,archived'
-                );
-                $fields[$fieldName]['values'] = array_map('trim', explode(',', $values));
-            }
-        }
-
-        return $fields;
-    }
-
     protected function addRelationToModel(string $modelName, string $relatedModelName, string $relationType): void
     {
         $modelPath = app_path("Models/{$modelName}.php");
 
-        if ( ! File::exists($modelPath)) {
+        if (!File::exists($modelPath)) {
             info("Model file not found: {$modelPath}");
             return;
         }
@@ -303,27 +232,27 @@ final class RapidsModels extends Command
     protected function generateBelongsToMethod(string $methodName, string $model): string
     {
         // Derive the foreign key from the method name
-        $foreignKey = Str::snake($methodName).'_id';
+        $foreignKey = Str::snake($methodName) . '_id';
 
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\BelongsTo\n".
-            "    {\n".
-            "        return \$this->belongsTo({$model}::class, '{$foreignKey}');\n".
+        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\BelongsTo\n" .
+            "    {\n" .
+            "        return \$this->belongsTo({$model}::class, '{$foreignKey}');\n" .
             "    }";
     }
 
     protected function generateHasOneMethod(string $methodName, string $model): string
     {
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\HasOne\n".
-            "    {\n".
-            "        return \$this->hasOne({$model}::class);\n".
+        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\HasOne\n" .
+            "    {\n" .
+            "        return \$this->hasOne({$model}::class);\n" .
             "    }";
     }
 
     protected function generateHasManyMethod(string $methodName, string $model): string
     {
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\HasMany\n".
-            "    {\n".
-            "        return \$this->hasMany({$model}::class);\n".
+        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\HasMany\n" .
+            "    {\n" .
+            "        return \$this->hasMany({$model}::class);\n" .
             "    }";
     }
 
@@ -335,31 +264,31 @@ final class RapidsModels extends Command
         $pivotTableName = collect([$table1, $table2])->sort()->implode('_');
 
         // Define foreign keys
-        $foreignKey = Str::snake($this->modelName).'_id';
-        $relatedKey = Str::snake($model).'_id';
+        $foreignKey = Str::snake($this->modelName) . '_id';
+        $relatedKey = Str::snake($model) . '_id';
 
         // Create pivot table migration if it doesn't exist
         $this->createPivotTableMigration($pivotTableName, $foreignKey, $relatedKey, $this->modelName, $model);
 
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\BelongsToMany\n".
-            "    {\n".
-            "        return \$this->belongsToMany(\n".
-            "            {$model}::class,\n".
-            "            '{$pivotTableName}',\n".
-            "            '{$foreignKey}',\n".
-            "            '{$relatedKey}'\n".
-            "        );\n".
+        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\BelongsToMany\n" .
+            "    {\n" .
+            "        return \$this->belongsToMany(\n" .
+            "            {$model}::class,\n" .
+            "            '{$pivotTableName}',\n" .
+            "            '{$foreignKey}',\n" .
+            "            '{$relatedKey}'\n" .
+            "        );\n" .
             "    }";
     }
 
     protected function createPivotTableMigration(string $pivotTable, string $foreignKey, string $relatedKey, string $model1, string $model2): void
     {
         $migrationName = "create_{$pivotTable}_table";
-        $migrationPath = database_path("migrations/".date('Y_m_d_His_').$migrationName.'.php');
+        $migrationPath = database_path("migrations/" . date('Y_m_d_His_') . $migrationName . '.php');
 
         // Skip if migration already exists
-        $existingMigrations = glob(database_path('migrations/*'.$migrationName.'.php'));
-        if ( ! empty($existingMigrations)) {
+        $existingMigrations = glob(database_path('migrations/*' . $migrationName . '.php'));
+        if (!empty($existingMigrations)) {
             info("Pivot table migration already exists for {$pivotTable}");
             return;
         }
@@ -381,11 +310,11 @@ final class RapidsModels extends Command
         if ($hasAdditionalFields) {
             $additionalFields = $this->getModelsFields();
             foreach ($additionalFields as $field => $options) {
-                if ( ! str_ends_with($field, '_id')) {  // Skip foreign keys as we already have them
+                if (!str_ends_with($field, '_id')) {  // Skip foreign keys as we already have them
                     if ('enum' === $options['type']) {
-                        $values = array_map(fn ($value) => "'{$value}'", $options['values']);
-                        $fields .= "\$table->enum('{$field}', [".implode(', ', $values)."])";
-                        if ( ! empty($options['values'])) {
+                        $values = array_map(fn($value) => "'{$value}'", $options['values']);
+                        $fields .= "\$table->enum('{$field}', [" . implode(', ', $values) . "])";
+                        if (!empty($options['values'])) {
                             $fields .= "->default('{$options['values'][0]}')";
                         }
                     } else {
@@ -442,33 +371,33 @@ final class RapidsModels extends Command
         );
 
         // Build the relationship method with proper parameters
-        $code = "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\HasOneThrough\n".
-            "    {\n".
-            "        return \$this->hasOneThrough(\n".
-            "            {$model}::class,\n".
+        $code = "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\HasOneThrough\n" .
+            "    {\n" .
+            "        return \$this->hasOneThrough(\n" .
+            "            {$model}::class,\n" .
             "            {$intermediateModel}::class";
 
         // Add optional parameters if provided
-        if ( ! empty($foreignKey) || ! empty($secondForeignKey) || ! empty($localKey) || ! empty($secondLocalKey)) {
-            if ( ! empty($foreignKey)) {
+        if (!empty($foreignKey) || !empty($secondForeignKey) || !empty($localKey) || !empty($secondLocalKey)) {
+            if (!empty($foreignKey)) {
                 $code .= ",\n'{$foreignKey}'";
             } else {
                 $code .= ",\nnull";
             }
 
-            if ( ! empty($secondForeignKey)) {
+            if (!empty($secondForeignKey)) {
                 $code .= ",\n'{$secondForeignKey}'";
             } else {
                 $code .= ",\nnull";
             }
 
-            if ( ! empty($localKey)) {
+            if (!empty($localKey)) {
                 $code .= ",\n{$localKey}'";
             } else {
                 $code .= ",\nnull";
             }
 
-            if ( ! empty($secondLocalKey)) {
+            if (!empty($secondLocalKey)) {
                 $code .= ",\n'{$secondLocalKey}'";
             } else {
                 $code .= ",\nnull";
@@ -482,49 +411,49 @@ final class RapidsModels extends Command
 
     protected function generateHasManyThroughMethod(string $methodName, string $model): string
     {
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\HasManyThrough\n".
-            "    {\n".
-            "        return \$this->hasManyThrough({$model}::class, Through::class);\n".
+        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\HasManyThrough\n" .
+            "    {\n" .
+            "        return \$this->hasManyThrough({$model}::class, Through::class);\n" .
             "    }";
     }
 
     protected function generateMorphOneMethod(string $methodName, string $model): string
     {
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphOne\n".
-            "    {\n".
-            "        return \$this->morphOne({$model}::class, '".Str::snake($this->modelName)."able');\n".
+        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphOne\n" .
+            "    {\n" .
+            "        return \$this->morphOne({$model}::class, '" . Str::snake($this->modelName) . "able');\n" .
             "    }";
     }
 
     protected function generateMorphManyMethod(string $methodName, string $model): string
     {
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphMany\n".
-            "    {\n".
-            "        return \$this->morphMany({$model}::class, '".Str::snake($this->modelName)."able');\n".
+        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphMany\n" .
+            "    {\n" .
+            "        return \$this->morphMany({$model}::class, '" . Str::snake($this->modelName) . "able');\n" .
             "    }";
     }
 
     protected function generateMorphToMethod(string $methodName): string
     {
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphTo\n".
-            "    {\n".
-            "        return \$this->morphTo();\n".
+        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphTo\n" .
+            "    {\n" .
+            "        return \$this->morphTo();\n" .
             "    }";
     }
 
     protected function generateMorphToManyMethod(string $methodName, string $model): string
     {
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphToMany\n".
-            "    {\n".
-            "        return \$this->morphToMany({$model}::class, '".Str::snake($this->modelName)."able');\n".
+        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphToMany\n" .
+            "    {\n" .
+            "        return \$this->morphToMany({$model}::class, '" . Str::snake($this->modelName) . "able');\n" .
             "    }";
     }
 
     protected function generateMorphedByManyMethod(string $methodName, string $model): string
     {
-        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphedByMany\n".
-            "    {\n".
-            "        return \$this->morphedByMany({$model}::class, '".Str::singular(Str::snake($methodName))."able');\n".
+        return "public function {$methodName}(): \Illuminate\Database\Eloquent\Relations\MorphedByMany\n" .
+            "    {\n" .
+            "        return \$this->morphedByMany({$model}::class, '" . Str::singular(Str::snake($methodName)) . "able');\n" .
             "    }";
     }
 
@@ -546,7 +475,7 @@ final class RapidsModels extends Command
                 // Ask for foreign key constraint type
                 $constraintType = search(
                     label: "Select constraint type for {$field}",
-                    options: fn () => [
+                    options: fn() => [
                         'cascade' => 'CASCADE (delete related records)',
                         'restrict' => 'RESTRICT (prevent deletion)',
                         'nullify' => 'SET NULL (set null on deletion)',
@@ -555,22 +484,22 @@ final class RapidsModels extends Command
 
                 // Generate foreign key constraint
                 $tableFields .= "\$table->foreignId('{$field}')"
-                    ."->constrained('{$relatedTable}')"
-                    .match ($constraintType) {
+                    . "->constrained('{$relatedTable}')"
+                    . match ($constraintType) {
                         'cascade' => '->cascadeOnDelete()',
                         'restrict' => '->restrictOnDelete()',
                         'nullify' => '->nullOnDelete()',
                     }
-                .($options['nullable'] ? '->nullable()' : '')
-                .";\n";
+                    . ($options['nullable'] ? '->nullable()' : '')
+                    . ";\n";
             } else {
                 // Handle non-foreign key fields
                 if ('enum' === $options['type']) {
-                    $values = array_map(fn ($value) => "'{$value}'", $options['values']);
-                    $tableFields .= "\$table->enum('{$field}', [".implode(', ', $values)."])";
+                    $values = array_map(fn($value) => "'{$value}'", $options['values']);
+                    $tableFields .= "\$table->enum('{$field}', [" . implode(', ', $values) . "])";
 
                     // Add default value (use first enum value as default)
-                    if ( ! empty($options['values'])) {
+                    if (!empty($options['values'])) {
                         $defaultValue = $options['values'][0];
                         $tableFields .= "->default('{$defaultValue}')";
                     }
@@ -590,7 +519,7 @@ final class RapidsModels extends Command
 
     protected function handleModelCreation(): void
     {
-        $fields = $this->getModelsFields();
+        $fields = ModelFields::generateModelFields($this->modelName);
 
         $this->generateModel($fields);
         $this->generateMigration($fields);
@@ -600,7 +529,7 @@ final class RapidsModels extends Command
     {
         $modelStub = File::get(config('rapids.stubs.migration.model'));
 
-        $fillableStr = "'".implode("', '", array_keys($fields))."'";
+        $fillableStr = "'" . implode("', '", array_keys($fields)) . "'";
 
         $relations = $this->getModelRelations();
 
@@ -629,7 +558,7 @@ final class RapidsModels extends Command
             }
         }
 
-        if ( ! $hasIdFields) {
+        if (!$hasIdFields) {
             info('No foreign key fields found. Skipping relations...');
             return [];
         }
@@ -642,7 +571,7 @@ final class RapidsModels extends Command
 
             $relationType = search(
                 label: 'Select relationship type',
-                options: fn () => [
+                options: fn() => [
                     'hasOne' => 'Has One',
                     'hasMany' => 'Has Many',
                     'belongsTo' => 'Belongs To',
@@ -708,8 +637,8 @@ final class RapidsModels extends Command
 
     protected function generateMigration(array $fields): void
     {
-        $migrationName = 'create_'.Str::snake(Str::pluralStudly($this->modelName)).'_table';
-        $migrationFile = database_path("migrations/".date('Y_m_d_His_').$migrationName.'.php');
+        $migrationName = 'create_' . Str::snake(Str::pluralStudly($this->modelName)) . '_table';
+        $migrationFile = database_path("migrations/" . date('Y_m_d_His_') . $migrationName . '.php');
 
         $stub = File::get(config('rapids.stubs.migration.migration'));
 
@@ -757,7 +686,7 @@ final class RapidsModels extends Command
                     'date' => "'{$field}' => \$this->faker->date(),",
                     'datetime', 'timestamp' => "'{$field}' => \$this->faker->dateTime(),",
                     'json' => "'{$field}' => ['key' => \$this->faker->word],",
-                    'enum' => "'{$field}' => \$this->faker->randomElement(['".implode("', '", $options['values'] ?? [])."']),",
+                    'enum' => "'{$field}' => \$this->faker->randomElement(['" . implode("', '", $options['values'] ?? []) . "']),",
                     'uuid' => "'{$field}' => \$this->faker->uuid,",
                     'email' => "'{$field}' => \$this->faker->safeEmail,",
                     'phone' => "'{$field}' => \$this->faker->phoneNumber,",
@@ -782,7 +711,7 @@ final class RapidsModels extends Command
         $modelPath = app_path("Models/{$this->modelName}.php");
 
         // Vérifier si le fichier du modèle existe physiquement
-        if ( ! File::exists($modelPath)) {
+        if (!File::exists($modelPath)) {
             throw new RuntimeException("Model file for {$this->modelName} does not exist at {$modelPath}");
         }
 
@@ -791,7 +720,7 @@ final class RapidsModels extends Command
 
         $modelClass = "App\\Models\\{$this->modelName}";
 
-        if ( ! class_exists($modelClass)) {
+        if (!class_exists($modelClass)) {
             throw new RuntimeException("Model class {$modelClass} could not be loaded.");
         }
 
