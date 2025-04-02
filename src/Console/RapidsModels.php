@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rapids\Rapids\Console;
 
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Rapids\Rapids\Concerns\FactoryGenerator;
@@ -12,6 +13,10 @@ use Rapids\Rapids\Concerns\MigrationGenerator;
 use Rapids\Rapids\Concerns\ModelFieldsGenerator;
 use Rapids\Rapids\Concerns\ModelGenerator;
 use Rapids\Rapids\Concerns\SeederGenerator;
+use Rapids\Rapids\Domain\Model\ModelDefinition;
+use Rapids\Rapids\Infrastructure\Laravel\LaravelFileSystem;
+use Rapids\Rapids\Infrastructure\Laravel\LaravelRelationshipService;
+use Rapids\Rapids\Infrastructure\Laravel\PromptService;
 use Rapids\Rapids\Relations\RelationshipGeneration;
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\search;
@@ -31,6 +36,9 @@ final class RapidsModels extends Command
 
     protected array $selectedFields = [];
 
+    /**
+     * @throws FileNotFoundException
+     */
     public function handle(): void
     {
         // Get all PHP files in Models directory
@@ -91,7 +99,7 @@ final class RapidsModels extends Command
         info("Adding new migration for {$modelName}");
 
         // Get new fields for the migration
-        $fields = ModelFieldsGenerator::generateModelFields($modelName);
+        $fields = (new ModelFieldsGenerator($this->modelName))->generate();
 
         foreach ($fields as $field => &$options) {
             $options['nullable'] = true;
@@ -222,18 +230,39 @@ final class RapidsModels extends Command
 
     protected function handleModelCreation(): void
     {
-        $fields = new  ModelFieldsGenerator($this->modelName);
+        $fields = new ModelFieldsGenerator($this->modelName);
+
+        // Create required dependencies
+        $fileSystem = new LaravelFileSystem();
+        $relationshipService = new LaravelRelationshipService();
+        $promptService = new PromptService();
 
         $modelGeneration = new ModelGenerator(
+            $fileSystem,
+            $relationshipService,
+            $promptService
+        );
+
+        // Generate fields and store them
+        $generatedFields = $fields->generate();
+        $this->selectedFields = $generatedFields; // Store for later use in factory generation
+
+        // Create ModelDefinition object
+        $modelDefinition = new ModelDefinition(
             $this->modelName,
+            $generatedFields,
             $this->relationFields
         );
 
-        $modelGeneration->generateModel($fields->generate());
+        // Generate the model with the proper ModelDefinition object
+        $modelGeneration->generateModel($modelDefinition);
 
-        (new MigrationGenerator($this->modelName))->generateMigration($fields->generate());
+        (new MigrationGenerator($this->modelName))->generateMigration($generatedFields);
     }
 
+    /**
+     * @throws FileNotFoundException
+     */
     protected function generateFactory(): void
     {
         $factories = new FactoryGenerator(
