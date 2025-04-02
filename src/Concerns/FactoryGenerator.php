@@ -6,6 +6,9 @@ use Exception;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Rapids\Rapids\Application\UseCase\GetModelFieldsUseCase;
+use Rapids\Rapids\Infrastructure\Repository\LaravelModelRepository;
+use Rapids\Rapids\Infrastructure\Repository\LaravelSchemaRepository;
 use Rapids\Rapids\Services\ModelFieldsService;
 use RuntimeException;
 use function Laravel\Prompts\text;
@@ -41,10 +44,10 @@ class FactoryGenerator
      * @param bool $interactive Whether to use interactive prompts (default: true)
      */
     public function __construct(
-        public string $modelName,
-        public array  $selectedFields,
-        public array  $relationFields,
-        private bool  $interactive = true
+        public string         $modelName,
+        public array          $selectedFields,
+        public array          $relationFields,
+        private readonly bool $interactive = true
     )
     {
     }
@@ -77,7 +80,13 @@ class FactoryGenerator
      */
     private function getModelFields(): array
     {
-        $service = new ModelFieldsService($this->modelName, $this->selectedFields, $this->relationFields);
+        // Create dependencies for ModelFieldsService
+        $modelRepository = new LaravelModelRepository();
+        $schemaRepository = new LaravelSchemaRepository();
+        $useCase = new GetModelFieldsUseCase($modelRepository, $schemaRepository);
+
+        // Create service with correct parameters
+        $service = new ModelFieldsService($this->modelName, $useCase);
         return $service->getModelFields();
     }
 
@@ -156,7 +165,7 @@ class FactoryGenerator
     {
         return str_replace(
             ['{{ namespace }}', '{{ model }}', '{{ fields }}'],
-            ['Database\\Factories', $this->modelName, implode("\n", $factoryFields)],
+            ['Database\\Factories', $this->modelName, implode("\n            ", $factoryFields)],
             $stub
         );
     }

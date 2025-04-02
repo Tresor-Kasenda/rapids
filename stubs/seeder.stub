@@ -8,5 +8,8 @@ class {{ class }} extends Seeder
 {
     public function run(): void
     {
+        {{ model }}::factory()
+            ->count(10)
+            ->create();
     }
 }
