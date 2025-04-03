@@ -41,14 +41,12 @@ final class RapidsModels extends Command
      */
     public function handle(): void
     {
-        // Get all PHP files in Models directory
         $modelPath = app_path('Models');
         $modelFiles = array_map(
             fn($file) => pathinfo($file, PATHINFO_FILENAME),
             glob($modelPath . '/*.php')
         );
 
-        // Filter existing models
         $availableModels = array_filter($modelFiles, fn($model) => class_exists("App\\Models\\{$model}"));
 
         $modelName = $this->argument('name') ?? text(
@@ -98,16 +96,13 @@ final class RapidsModels extends Command
         $this->modelName = $modelName;
         info("Adding new migration for {$modelName}");
 
-        // Get new fields for the migration
         $fields = (new ModelFieldsGenerator($this->modelName))->generate();
 
         foreach ($fields as $field => &$options) {
             $options['nullable'] = true;
         }
 
-        // Handle relations for fields ending with _id
         unset($options);
-        // Replace the hardcoded relationship code in handleExistingModel method
         foreach ($fields as $field => $options) {
             if (str_ends_with($field, '_id')) {
                 $relatedModelName = text(
@@ -116,7 +111,6 @@ final class RapidsModels extends Command
                     required: true
                 );
 
-                // Choose relationship type for current model
                 $currentModelRelation = search(
                     label: "Select relationship type for {$this->modelName} to {$relatedModelName}",
                     options: fn() => [
@@ -135,7 +129,6 @@ final class RapidsModels extends Command
                     placeholder: 'Select relationship type'
                 );
 
-                // Choose inverse relationship type for related model
                 $inverseRelation = search(
                     label: "Select inverse relationship type for {$relatedModelName} to {$this->modelName}",
                     options: fn() => [
@@ -155,14 +148,12 @@ final class RapidsModels extends Command
                     placeholder: 'Select inverse relationship type'
                 );
 
-                // Add relation to current model
                 $this->addRelationToModel(
                     $this->modelName,
                     $relatedModelName,
                     $currentModelRelation
                 );
 
-                // Add inverse relation if needed
                 if ('none' !== $inverseRelation) {
                     $this->addRelationToModel(
                         $relatedModelName,
@@ -232,7 +223,6 @@ final class RapidsModels extends Command
     {
         $fields = new ModelFieldsGenerator($this->modelName);
 
-        // Create required dependencies
         $fileSystem = new LaravelFileSystem();
         $relationshipService = new LaravelRelationshipService();
         $promptService = new PromptService();
@@ -243,18 +233,15 @@ final class RapidsModels extends Command
             $promptService
         );
 
-        // Generate fields and store them
         $generatedFields = $fields->generate();
         $this->selectedFields = $generatedFields; // Store for later use in factory generation
 
-        // Create ModelDefinition object
         $modelDefinition = new ModelDefinition(
             $this->modelName,
             $generatedFields,
             $this->relationFields
         );
 
-        // Generate the model with the proper ModelDefinition object
         $modelGeneration->generateModel($modelDefinition);
 
         (new MigrationGenerator($this->modelName))->generateMigration($generatedFields);

@@ -5,6 +5,7 @@ namespace Rapids\Rapids\Infrastructure\Repository;
 use Illuminate\Support\Facades\File;
 use Rapids\Rapids\Domain\Port\ModelRepositoryInterface;
 use RuntimeException;
+use function Laravel\Prompts\error;
 
 class LaravelModelRepository implements ModelRepositoryInterface
 {
@@ -22,6 +23,7 @@ class LaravelModelRepository implements ModelRepositoryInterface
             require_once $modelPath;
 
             if (!class_exists($modelClass)) {
+                error("Model class {$modelClass} could not be loaded.");
                 throw new RuntimeException("Model class {$modelClass} could not be loaded.");
             }
         }

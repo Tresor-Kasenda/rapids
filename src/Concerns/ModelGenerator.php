@@ -28,14 +28,11 @@ readonly class ModelGenerator implements ModelGeneratorInterface
         $fields = $modelDefinition->getFields();
 
         try {
-            // Generate model content
             $modelContent = $this->buildModelContent($modelDefinition);
 
-            // Create model file
             $modelPath = $this->getModelPath($modelName);
             $this->fileSystem->put($modelPath, $modelContent);
 
-            // Process relationships
             $this->processRelationships($modelDefinition);
         } catch (Exception $e) {
             throw new RuntimeException("Failed to generate model: {$e->getMessage()}", 0, $e);
@@ -48,16 +45,12 @@ readonly class ModelGenerator implements ModelGeneratorInterface
         $fields = $modelDefinition->getFields();
         $relations = $modelDefinition->getRelations();
 
-        // Get model stub
         $modelStub = $this->fileSystem->get($this->getStubPath());
 
-        // Build fillable fields string
         $fillableStr = "'" . implode("', '", array_keys($fields)) . "'";
 
-        // Generate relation methods
         $relationMethods = $this->relationshipService->generateRelationMethods($modelName, $relations);
 
-        // Replace placeholders
         return str_replace(
             ['{{ namespace }}', '{{ class }}', '{{ fillable }}', '{{ relations }}'],
             ['App\\Models', $modelName, $fillableStr, $relationMethods],
@@ -81,37 +74,31 @@ readonly class ModelGenerator implements ModelGeneratorInterface
         $fields = $modelDefinition->getFields();
         $relations = $modelDefinition->getRelations();
 
-        // Process foreign key fields for automatic relationships
         foreach ($fields as $field => $options) {
             if (str_ends_with($field, '_id')) {
                 $this->processForeignKeyRelation($modelName, $field);
             }
         }
 
-        // Allow adding manual relationships
         $this->promptForAdditionalRelations($modelName);
     }
 
     private function processForeignKeyRelation(string $modelName, string $field): void
     {
-        // Get related model name
         $relatedModelName = $this->promptService->text(
             "Enter related model name for {$field}",
             'e.g. User for user_id',
             true
         );
 
-        // Define current model's relationship to related model
         $currentModelRelation = $this->promptService->searchRelationshipType(
             "Select relationship type for {$modelName} to {$relatedModelName}"
         );
 
-        // Define inverse relationship
         $inverseRelation = $this->promptService->searchInverseRelationshipType(
             "Select inverse relationship type for {$relatedModelName} to {$modelName}"
         );
 
-        // Add relationship to current model
         if ($inverseRelation !== 'none') {
             $this->addRelationToRelatedModel($relatedModelName, $modelName, $inverseRelation);
         }
@@ -128,10 +115,8 @@ readonly class ModelGenerator implements ModelGeneratorInterface
 
         $content = $this->fileSystem->get($modelPath);
 
-        // Generate method name based on relationship type and current model name
         $methodName = $this->relationshipService->getRelationMethodName($relationType, $currentModelName);
 
-        // Generate relation method
         $relationMethod = $this->relationshipService->generateRelationMethod(
             $relatedModelName,
             $relationType,
@@ -139,16 +124,13 @@ readonly class ModelGenerator implements ModelGeneratorInterface
             $currentModelName
         );
 
-        // Check if method already exists
         if (str_contains($content, "function {$methodName}(")) {
             $this->promptService->info("Relation method {$methodName}() already exists in {$relatedModelName} model");
             return;
         }
 
-        // Add the relation method before the last closing brace
         $content = preg_replace('/}(\s*)$/', "\n    {$relationMethod}\n}", $content);
 
-        // Save updated model
         $this->fileSystem->put($modelPath, $content);
         $this->promptService->info("Added {$relationType} relation from {$relatedModelName} to {$currentModelName}");
     }
@@ -164,7 +146,6 @@ readonly class ModelGenerator implements ModelGeneratorInterface
                 true
             );
 
-            // Ask for inverse relation
             $inverseRelation = $this->promptService->searchInverseRelationshipType(
                 "Select inverse relationship type for {$relatedModel} to {$modelName}"
             );

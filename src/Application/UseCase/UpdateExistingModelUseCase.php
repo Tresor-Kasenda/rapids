@@ -22,13 +22,11 @@ readonly class UpdateExistingModelUseCase
         $tableName = $modelUpdate->getTableName();
         $fields = $modelUpdate->getFields();
 
-        // Generate migration content
         $migrationContent = $this->migrationGenerator->generateAlterMigration(
             $tableName,
             $fields
         );
 
-        // Create migration file
         $migrationName = 'add_fields_to_' . $tableName . '_table';
         $migrationFile = $this->getMigrationPath($migrationName);
         $this->fileSystem->put($migrationFile, $migrationContent);

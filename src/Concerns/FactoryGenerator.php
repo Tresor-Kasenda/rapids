@@ -3,7 +3,6 @@
 namespace Rapids\Rapids\Concerns;
 
 use Exception;
-use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Rapids\Rapids\Application\UseCase\GetModelFieldsUseCase;
@@ -56,7 +55,6 @@ class FactoryGenerator
      * Generate a factory file for the model
      *
      * @return void
-     * @throws FileNotFoundException
      */
     public function generateFactory(): void
     {
@@ -80,12 +78,10 @@ class FactoryGenerator
      */
     private function getModelFields(): array
     {
-        // Create dependencies for ModelFieldsService
         $modelRepository = new LaravelModelRepository();
         $schemaRepository = new LaravelSchemaRepository();
         $useCase = new GetModelFieldsUseCase($modelRepository, $schemaRepository);
 
-        // Create service with correct parameters
         $service = new ModelFieldsService($this->modelName, $useCase);
         return $service->getModelFields();
     }
