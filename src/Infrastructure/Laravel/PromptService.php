@@ -62,4 +62,13 @@ class PromptService implements ServiceInterface
     {
         info($message);
     }
+
+    public function select(string $label, array $options): string
+    {
+        return search(
+            label: $label,
+            options: fn() => $options,
+            placeholder: 'Select an option'
+        );
+    }
 }

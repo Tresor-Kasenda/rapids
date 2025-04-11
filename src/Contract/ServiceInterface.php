@@ -13,4 +13,6 @@ interface ServiceInterface
     public function searchInverseRelationshipType(string $label): string;
 
     public function info(string $message): void;
+
+    public function select(string $label, array $options): string;
 }

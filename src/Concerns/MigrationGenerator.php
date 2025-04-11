@@ -38,7 +38,7 @@ class MigrationGenerator
      * @return void
      * @throws RuntimeException If migration generation fails
      */
-    public function generateMigration(array $fields): void
+    public function generateMigration(array $fields, bool $softDeletes = false): void
     {
         try {
             $tableName = Str::snake(Str::pluralStudly($this->modelName));
@@ -47,6 +47,10 @@ class MigrationGenerator
 
             $stub = File::get(config('rapids.stubs.migration.migration'));
             $tableFields = $this->generateMigrationFields($fields);
+
+            if ($softDeletes) {
+                $tableFields .= "\n\$table->softDeletes();";
+            }
 
             $migrationContent = $this->replacePlaceholders($stub, $tableName, $tableFields);
 

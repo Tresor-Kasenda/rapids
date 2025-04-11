@@ -7,9 +7,11 @@ namespace Rapids\Rapids\Domain\Model;
 class ModelDefinition
 {
     public function __construct(
-        private string $name,
-        private array  $fields = [],
-        private array  $relations = []
+        private readonly string $name,
+        private array           $fields = [],
+        private array           $relations = [],
+        private bool            $useFillable = true,
+        private bool            $useSoftDelete = false,
     )
     {
     }
@@ -38,6 +40,22 @@ class ModelDefinition
     public function addRelation(array $relation): self
     {
         $this->relations[] = $relation;
+        return $this;
+    }
+
+    public function useFillable(): bool
+    {
+        return $this->useFillable;
+    }
+
+    public function useSoftDeletes(): bool
+    {
+        return $this->useSoftDelete;
+    }
+
+    public function setUseSoftDeletes(bool $useSoftDelete): self
+    {
+        $this->useSoftDelete = $useSoftDelete;
         return $this;
     }
 }

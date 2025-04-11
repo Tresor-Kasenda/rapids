@@ -6,6 +6,7 @@ namespace Rapids\Rapids;
 
 use Illuminate\Support\ServiceProvider;
 use Rapids\Rapids\Application\Port\FileSystemPort;
+use Rapids\Rapids\Console\AntiPatternDetectorCommand;
 use Rapids\Rapids\Console\AuditModelsCommand;
 use Rapids\Rapids\Console\RapidCrud;
 use Rapids\Rapids\Console\RapidsInstallation;
@@ -28,6 +29,7 @@ final class RapidsServiceProvider extends ServiceProvider
                 RapidsModels::class,
                 RapidCrud::class,
                 AuditModelsCommand::class,
+                AntiPatternDetectorCommand::class
             ]);
         }
     }

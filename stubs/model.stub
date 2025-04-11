@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace {{ namespace }};
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+{{ use }}
 
 class {{ class }} extends Model
 {
     use HasFactory;
+    {{ traits }}
 
-    protected $fillable = [
-        {{ fillable }}
-    ];
+    {{ protection }}
 
     {{ relations }}
 }

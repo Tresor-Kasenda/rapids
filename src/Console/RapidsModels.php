@@ -18,6 +18,7 @@ use Rapids\Rapids\Infrastructure\Laravel\LaravelFileSystem;
 use Rapids\Rapids\Infrastructure\Laravel\LaravelRelationshipService;
 use Rapids\Rapids\Infrastructure\Laravel\PromptService;
 use Rapids\Rapids\Relations\RelationshipGeneration;
+use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\search;
 use function Laravel\Prompts\text;
@@ -87,7 +88,7 @@ final class RapidsModels extends Command
         info('Running migrations...');
         $this->call('migrate');
         $this->generateFactory();
-        (new SeederGenerator($this->modelName))->generateSeeder();
+        new SeederGenerator($this->modelName)->generateSeeder();
         info('Model created successfully.');
     }
 
@@ -96,7 +97,7 @@ final class RapidsModels extends Command
         $this->modelName = $modelName;
         info("Adding new migration for {$modelName}");
 
-        $fields = (new ModelFieldsGenerator($this->modelName))->generate();
+        $fields = new ModelFieldsGenerator($this->modelName)->generate();
 
         foreach ($fields as $field => &$options) {
             $options['nullable'] = true;
@@ -168,7 +169,7 @@ final class RapidsModels extends Command
         $migrationFile = database_path("migrations/" . date('Y_m_d_His_') . $migrationName . '.php');
 
         $stub = File::get(config('rapids.stubs.migration.alter'));
-        $tableFields = (new MigrationGenerator($this->modelName))
+        $tableFields = new MigrationGenerator($this->modelName)
             ->generateMigrationFields($fields);
 
         $migrationContent = str_replace(
@@ -236,15 +237,21 @@ final class RapidsModels extends Command
         $generatedFields = $fields->generate();
         $this->selectedFields = $generatedFields; // Store for later use in factory generation
 
+        $useSoftDeletes = confirm(
+            label: 'Would you like to add soft delete functionality?',
+            default: false
+        );
+
         $modelDefinition = new ModelDefinition(
             $this->modelName,
             $generatedFields,
-            $this->relationFields
+            $this->relationFields,
+            $useSoftDeletes
         );
 
         $modelGeneration->generateModel($modelDefinition);
 
-        (new MigrationGenerator($this->modelName))->generateMigration($generatedFields);
+        new MigrationGenerator($this->modelName)->generateMigration($generatedFields, $useSoftDeletes);
     }
 
     /**

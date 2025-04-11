@@ -17,9 +17,10 @@ use function Laravel\Prompts\warning;
 
 class AuditModelsCommand extends Command
 {
-    protected $signature = 'rapids:audit-models
+    protected $signature = 'rapids:audit-insight
                             {--path=app/Models : Path to Laravel models directory or specific model file}
-                            {--output=docs/database-schema.md : Output file path for documentation}';
+                            {--output=docs/database-schema.md : Output file path for documentation}
+                            {--ignore-factories : Exclude factory methods from relationship analysis}';
 
     protected $description = 'Audit existing Laravel models and their fields';
 
@@ -37,7 +38,6 @@ class AuditModelsCommand extends Command
         $pathOption = $this->option('path');
         $isDefaultPath = $pathOption === 'app/Models';
 
-        // Check if the path is referring to a specific model
         if ($this->isSingleModelPath($pathOption)) {
             $modelPath = $this->resolveModelPath($pathOption);
             if ($modelPath) {
@@ -50,7 +50,6 @@ class AuditModelsCommand extends Command
             }
         }
 
-        // If using default path, scan the entire project
         if ($isDefaultPath) {
             info('Auditing all models in the project...');
             $modelFiles = $this->findAllProjectModels();
@@ -61,9 +60,7 @@ class AuditModelsCommand extends Command
 
         info('Found ' . count($modelFiles) . ' model files');
 
-        foreach ($modelFiles as $modelFile) {
-            $this->auditModel($modelFile);
-        }
+        $this->batchProcessModels($modelFiles);
 
         if (defined('STDOUT') && !posix_isatty(STDOUT)) {
             $outputPath = $this->option('output') ?? 'docs/database-schema.md';
@@ -140,7 +137,7 @@ class AuditModelsCommand extends Command
             }
 
             // MODEL OVERVIEW section
-            $this->info("�� MODEL OVERVIEW:");
+            $this->info(" MODEL OVERVIEW:");
             $overviewData = [
                 ['Property', 'Value'],
                 ['Name', $className],
@@ -391,6 +388,15 @@ class AuditModelsCommand extends Command
         $reflection = new ReflectionClass($model);
         $methods = $reflection->getMethods();
 
+        // Factory method patterns to exclude
+        $factoryPatterns = [
+            '/factory$/i',
+            '/factory[A-Z]/i',
+            '/make[A-Z].*Factory/i',
+            '/create[A-Z].*Factory/i',
+            '/new[A-Z].*Factory/i'
+        ];
+
         $relationTypes = [
             'hasOne', 'hasMany', 'belongsTo', 'belongsToMany',
             'hasManyThrough', 'hasOneThrough', 'morphTo',
@@ -398,17 +404,21 @@ class AuditModelsCommand extends Command
         ];
 
         foreach ($methods as $method) {
-            if ($method->class != get_class($model)) {
-                continue; // Skip inherited methods
+            // Skip inherited and factory-related methods
+            if ($method->class != get_class($model) || $this->isFactoryMethod($method->name, $factoryPatterns)) {
+                continue;
             }
 
             $code = $this->getMethodBody($reflection, $method->name);
 
+            // Skip factory-related code
+            if ($this->containsFactoryCode($code)) {
+                continue;
+            }
+
             foreach ($relationTypes as $relationType) {
                 if (str_contains($code, '$this->' . $relationType)) {
-                    // Extract the related model
                     $relatedModel = $this->extractRelatedModel($code);
-
                     $relations[] = [
                         'name' => $method->name,
                         'type' => $relationType,
@@ -422,6 +432,16 @@ class AuditModelsCommand extends Command
         return $relations;
     }
 
+    private function isFactoryMethod(string $methodName, array $patterns): bool
+    {
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $methodName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private function getMethodBody(ReflectionClass $class, string $methodName): string
     {
         $fileName = $class->getFileName();
@@ -432,6 +452,25 @@ class AuditModelsCommand extends Command
         $lines = explode("\n", $content);
 
         return implode("\n", array_slice($lines, $startLine - 1, $endLine - $startLine + 1));
+    }
+
+    private function containsFactoryCode(string $code): bool
+    {
+        $factoryPatterns = [
+            '/factory\s*\(/i',
+            '/Factory::/i',
+            '/->factory\(\)/i',
+            '/make[A-Z][a-zA-Z]*Factory/i',
+            '/create[A-Z][a-zA-Z]*Factory/i'
+        ];
+
+        foreach ($factoryPatterns as $pattern) {
+            if (preg_match($pattern, $code)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function extractRelatedModel(string $code): string
@@ -651,35 +690,47 @@ class AuditModelsCommand extends Command
 
     private function displayDependenciesGraph(string $modelName, array $relations, array $referencingFiles): void
     {
-        $this->line("\nDependencies Graph:");
-        $this->line($modelName);
+        if (defined('STDOUT') && !posix_isatty(STDOUT)) {
+            $this->displayMermaidGraph($modelName, $relations, $referencingFiles);
+        } else {
+            $this->displayAsciiGraph($modelName, $relations, $referencingFiles);
+        }
+    }
 
-        // Display Required by section
-        if (!empty($referencingFiles)) {
-            $this->line('├── Required by:');
-            $count = count($referencingFiles);
-            foreach ($referencingFiles as $index => $file) {
-                $isLast = $index === $count - 1;
-                $prefix = $isLast ? '    └── ' : '│   ├── ';
-                $relativePath = $this->getRelativePath($file);
-                $this->line($prefix . basename($file) . ' (' . $relativePath . ')');
-            }
+    private function displayMermaidGraph(string $modelName, array $relations, array $referencingFiles): void
+    {
+        $this->line('```mermaid');
+        $this->line('graph TD;');
+        $this->line('classDef main fill:#f96,stroke:#333,stroke-width:2px;');
+        $this->line('classDef required fill:#9cf,stroke:#333,stroke-width:1px;');
+        $this->line('classDef requiredBy fill:#fcf,stroke:#333,stroke-width:1px;');
+
+        $mainNode = $this->sanitizeNodeId($modelName);
+        $this->line("    {$mainNode}[\"{$modelName}\"]:::main;");
+
+        foreach ($referencingFiles as $file) {
+            $nodeId = $this->sanitizeNodeId(basename($file));
+            $label = basename($file) . '<br/>(' . $this->getRelativePath($file) . ')';
+            $this->line("    {$nodeId}[\"{$label}\"]:::requiredBy;");
+            $this->line("    {$nodeId} -->|uses| {$mainNode};");
         }
 
-        // Display Requires section
         $requiredModels = $this->getRequiredModels($relations);
-        if (!empty($requiredModels)) {
-            $prefix = empty($referencingFiles) ? '└── ' : '└── ';
-            $this->line($prefix . 'Requires:');
-            $count = count($requiredModels);
-            foreach ($requiredModels as $index => $model) {
-                $isLast = $index === $count - 1;
-                $prefix = $isLast ? '    └── ' : '    ├── ';
-                $path = $this->findModelPath($model);
-                $relativePath = $this->getRelativePath($path);
-                $this->line($prefix . $model . ' (' . $relativePath . ')');
-            }
+        foreach ($requiredModels as $model) {
+            $nodeId = $this->sanitizeNodeId($model);
+            $path = $this->findModelPath($model);
+            $label = $model . '<br/>(' . $this->getRelativePath($path) . ')';
+            $this->line("    {$nodeId}[\"{$label}\"]:::required;");
+            $this->line("    {$mainNode} -->|requires| {$nodeId};");
         }
+
+        $this->line('```');
+    }
+
+    private function sanitizeNodeId(string $name): string
+    {
+        // Remove special characters and spaces, ensure valid Mermaid node ID
+        return preg_replace('/[^a-zA-Z0-9]/', '_', $name);
     }
 
     private function getRelativePath(string $path): string
@@ -718,6 +769,40 @@ class AuditModelsCommand extends Command
         }
 
         return 'app/Models/' . $modelName . '.php';
+    }
+
+    private function displayAsciiGraph(string $modelName, array $relations, array $referencingFiles): void
+    {
+        $this->line("\nDependencies Graph:");
+        $this->line('┌' . str_repeat('─', strlen($modelName) + 2) . '┐');
+        $this->line('│ ' . $modelName . ' │');
+        $this->line('└' . str_repeat('─', strlen($modelName) + 2) . '┘');
+
+        if (!empty($referencingFiles)) {
+            $this->line("\nRequired by:");
+            foreach ($referencingFiles as $index => $file) {
+                $isLast = $index === count($referencingFiles) - 1;
+                $prefix = $isLast ? '└──' : '├──';
+                $fileName = basename($file);
+                $path = $this->getRelativePath($file);
+                $this->line(sprintf("%s %s (%s)", $prefix, $fileName, $path));
+            }
+        }
+
+        $requiredModels = $this->getRequiredModels($relations);
+        if (!empty($requiredModels)) {
+            $this->line("\nRequires:");
+            foreach ($requiredModels as $index => $model) {
+                $isLast = $index === count($requiredModels) - 1;
+                $prefix = $isLast ? '└──' : '├──';
+                $path = $this->getRelativePath($this->findModelPath($model));
+                $this->line(sprintf("%s %s (%s)", $prefix, $model, $path));
+            }
+        }
+
+        if (empty($referencingFiles) && empty($requiredModels)) {
+            $this->line("\nNo dependencies found.");
+        }
     }
 
     private function displayPerformanceInsights($model, array $fields, array $relations, int $recordCount): void
@@ -823,49 +908,35 @@ class AuditModelsCommand extends Command
 
     private function analyzeSourceCode(string $content, string $fullClassName): void
     {
-        $this->newLine();
-        $this->info("📝 SOURCE CODE ANALYSIS:");
+        $this->info("📋 SOURCE CODE STRUCTURE ANALYSIS:");
 
-        // Check for PHPDoc comments
-        $hasPhpDocComments = preg_match('/\/\*\*[\s\S]*?\*\//', $content) === 1;
-        $this->line("PHPDoc Comments: " . ($hasPhpDocComments ? 'Yes' : 'No'));
+        // Count of properties/attributes
+        preg_match_all('/(?:private|protected|public)\s+(?:\$[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)/m', $content, $propertiesMatches);
+        $propertiesCount = count($propertiesMatches[0] ?? []);
 
-        // Check for traits
-        try {
-            $reflection = new ReflectionClass($fullClassName);
-            $traits = $reflection->getTraitNames();
-            if (!empty($traits)) {
-                $this->line("Used Traits (" . count($traits) . "):");
-                foreach ($traits as $trait) {
-                    $this->line("  - " . basename(str_replace('\\', '/', $trait)));
-                }
-            } else {
-                $this->line("Used Traits: None");
-            }
+        // Find traits and interfaces
+        preg_match('/class\s+\w+(?:\s+extends\s+\w+)?(?:\s+implements\s+([\w\s,]+))?/m', $content, $implementsMatch);
+        preg_match_all('/use\s+([\w\\\\]+)(\s+as\s+[\w]+)?;/m', $content, $useMatches);
+        $interfaces = isset($implementsMatch[1]) ? array_map('trim', explode(',', $implementsMatch[1])) : [];
+        $traits = array_filter($useMatches[1] ?? [], fn($use) => str_contains($use, 'Trait') || class_exists($use) && (new ReflectionClass($use))->isTrait());
 
-            // Check for interfaces
-            $interfaces = $reflection->getInterfaceNames();
-            if (!empty($interfaces)) {
-                $this->line("Implemented Interfaces (" . count($interfaces) . "):");
-                foreach ($interfaces as $interface) {
-                    $this->line("  - " . basename(str_replace('\\', '/', $interface)));
-                }
-            } else {
-                $this->line("Implemented Interfaces: None");
-            }
+        // Documentation coverage
+        preg_match_all('!/\*\*.*?\*/!s', $content, $docblockMatches);
+        $docCount = count($docblockMatches[0] ?? []);
 
-            // Check for constants
-            $constants = $reflection->getConstants();
-            if (!empty($constants)) {
-                $this->line("Constants (" . count($constants) . "):");
-                foreach ($constants as $name => $value) {
-                    $this->line("  - {$name}: " . (is_string($value) ? "'{$value}'" : var_export($value, true)));
-                }
-            }
+        // Count lines of code
+        $lineCount = substr_count($content, "\n") + 1;
 
-        } catch (Throwable) {
-            $this->line("Could not analyze class structure.");
-        }
+        // Display metrics
+        table([
+            'Metric', 'Value', 'Notes'
+        ], [
+            ['Lines of Code', $lineCount, $lineCount > 300 ? 'Consider splitting class' : 'OK'],
+            ['Properties', $propertiesCount, ''],
+            ['Traits Used', count($traits), implode(', ', array_map(fn($trait) => basename(str_replace('\\', '/', $trait)), $traits))],
+            ['Implements', count($interfaces), implode(', ', $interfaces)],
+            ['Documentation %', $docCount > 0 ? round(($docCount / ($propertiesCount + $this->analyzeCodeComplexity($content)['methods'])) * 100) : 0, $docCount > 0 ? 'OK' : 'Consider adding documentation']
+        ]);
     }
 
     private function findAllProjectModels(): array
@@ -923,35 +994,42 @@ class AuditModelsCommand extends Command
         });
     }
 
-    private function auditModel(string $filePath): void
+    private function batchProcessModels(array $modelFiles): void
     {
-        $content = $this->fileSystem->get($filePath);
-        $namespace = $this->extractNamespace($content);
-        $className = $this->extractClassName($content);
-        $fullClassName = $namespace . '\\' . $className;
+        $models = [];
+        foreach ($modelFiles as $modelFile) {
+            $content = $this->fileSystem->get($modelFile);
+            $namespace = $this->extractNamespace($content);
+            $className = $this->extractClassName($content);
+            $fullClassName = $namespace . '\\' . $className;
 
-        try {
             if (!class_exists($fullClassName)) {
-                require_once $filePath;
+                require_once $modelFile;
             }
 
-            // Check if class actually extends Model before instantiating
-            if (!is_subclass_of($fullClassName, 'Illuminate\Database\Eloquent\Model')) {
-                warning("Skipping {$className}: Not an Eloquent Model");
-                return;
+            if (is_subclass_of($fullClassName, 'Illuminate\Database\Eloquent\Model')) {
+                $models[] = new $fullClassName();
             }
-
-            $model = new $fullClassName();
-            $fields = $this->extractModelFields($model);
-            $relations = $this->extractModelRelations($model);
-
-            $this->modelInfo[$className] = [
-                'fields' => $fields,
-                'relations' => $relations
-            ];
-        } catch (Throwable $e) {
-            $this->error("Error auditing model {$className}: {$e->getMessage()}");
         }
+
+        // Process models in batches
+        foreach (array_chunk($models, 10) as $modelBatch) {
+            foreach ($modelBatch as $model) {
+                $this->auditModel($model);
+            }
+        }
+    }
+
+    private function auditModel($model): void
+    {
+        $fields = $this->extractModelFields($model);
+        $relations = $this->extractModelRelations($model);
+        $className = get_class($model);
+
+        $this->modelInfo[$className] = [
+            'fields' => $fields,
+            'relations' => $relations
+        ];
     }
 
     private function generateDocumentationOutput(string $outputPath): string
@@ -970,6 +1048,7 @@ class AuditModelsCommand extends Command
         $documentation = [
             'generated_at' => date('Y-m-d H:i:s'),
             'total_models' => count($this->modelInfo),
+            'encoding' => 'UTF-8',
             'models' => [],
         ];
 
@@ -977,24 +1056,24 @@ class AuditModelsCommand extends Command
             $documentation['models'][$modelName] = [
                 'fields' => array_map(
                     fn($field) => [
-                        'name' => $field->getName(),
-                        'type' => $field->getType(),
+                        'name' => mb_convert_encoding($field->getName(), 'UTF-8', 'auto'),
+                        'type' => mb_convert_encoding($field->getType(), 'UTF-8', 'auto'),
                         'is_relation' => $field->isRelation(),
                     ],
                     $info['fields']
                 ),
                 'relations' => array_map(
                     fn($relation) => [
-                        'name' => $relation['name'],
-                        'type' => $relation['type'],
-                        'related_model' => $relation['related_model'] ?? 'Unknown',
+                        'name' => mb_convert_encoding($relation['name'], 'UTF-8', 'auto'),
+                        'type' => mb_convert_encoding($relation['type'], 'UTF-8', 'auto'),
+                        'related_model' => mb_convert_encoding($relation['related_model'] ?? 'Unknown', 'UTF-8', 'auto'),
                     ],
                     $info['relations']
                 ),
             ];
         }
 
-        return json_encode($documentation, JSON_PRETTY_PRINT);
+        return json_encode($documentation, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
     private function generateMarkdownDocumentation(): string

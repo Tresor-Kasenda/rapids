@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rapids\Rapids\Concerns;
 
 use Exception;
+use Illuminate\Support\Str;
 use Rapids\Rapids\Contract\FileSystemInterface;
 use Rapids\Rapids\Contract\ModelGeneratorInterface;
 use Rapids\Rapids\Contract\RelationshipServiceInterface;
@@ -43,17 +44,49 @@ readonly class ModelGenerator implements ModelGeneratorInterface
     {
         $modelName = $modelDefinition->getName();
         $fields = $modelDefinition->getFields();
-        $relations = $modelDefinition->getRelations();
+        $relations = [];
+        $protectionType = $this->promptService->select(
+            'How would you like to protect your model attributes?',
+            [
+                'fillable' => 'Use $fillable (explicitly allow fields)',
+                'guarded' => 'Use $guarded (explicitly deny fields)'
+            ]
+        );
 
+
+        $fieldNames = array_keys($fields);
+
+        // Generate protection array string
+        $protectionStr = match ($protectionType) {
+            'fillable' => "\n    protected \$fillable = ['" . implode("', '", $fieldNames) . "'];",
+            'guarded' => "\n    protected \$guarded = [];" // Empty guarded means all fields are mass assignable
+        };
+
+        $useStatements = 'use Illuminate\\Database\\Eloquent\\Model;';
+        $traits = '';
+
+        if ($modelDefinition->setUseSoftDeletes(true)) {
+            $useStatements .= "\nuse Illuminate\\Database\\Eloquent\\SoftDeletes;";
+            $traits = "\n    use SoftDeletes;";
+        }
+
+        foreach ($fields as $field => $options) {
+            if (str_ends_with($field, '_id')) {
+                $relatedModel = ucfirst(Str::beforeLast($field, '_id'));
+                $relations[] = [
+                    'type' => 'belongsTo',
+                    'model' => $relatedModel
+                ];
+            }
+        }
+
+        $relations = array_merge($relations, $modelDefinition->getRelations());
         $modelStub = $this->fileSystem->get($this->getStubPath());
-
-        $fillableStr = "'" . implode("', '", array_keys($fields)) . "'";
-
         $relationMethods = $this->relationshipService->generateRelationMethods($modelName, $relations);
 
         return str_replace(
-            ['{{ namespace }}', '{{ class }}', '{{ fillable }}', '{{ relations }}'],
-            ['App\\Models', $modelName, $fillableStr, $relationMethods],
+            ['{{ namespace }}', '{{ use }}', '{{ class }}', '{{ traits }}', '{{ protection }}', '{{ relations }}'],
+            ['App\\Models', $useStatements, $modelName, $traits, $protectionStr, $relationMethods],
             $modelStub
         );
     }

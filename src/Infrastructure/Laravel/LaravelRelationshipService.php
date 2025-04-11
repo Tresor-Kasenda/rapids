@@ -7,7 +7,7 @@ namespace Rapids\Rapids\Infrastructure\Laravel;
 use Illuminate\Support\Str;
 use Rapids\Rapids\Contract\RelationshipServiceInterface;
 
-class LaravelRelationshipService implements RelationshipServiceInterface
+readonly class LaravelRelationshipService implements RelationshipServiceInterface
 {
     public function __construct(private string $modelName = '')
     {
