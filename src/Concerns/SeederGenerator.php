@@ -1,15 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Rapids\Rapids\Concerns;
 
 use Illuminate\Support\Facades\File;
 
-class SeederGenerator
+final class SeederGenerator
 {
     public function __construct(
         public string $modelName
-    )
-    {
+    ) {
     }
 
     public function generateSeeder(): void

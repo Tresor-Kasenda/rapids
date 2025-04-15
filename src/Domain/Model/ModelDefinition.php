@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Rapids\Rapids\Domain\Model;
 
-class ModelDefinition
+final class ModelDefinition
 {
     public function __construct(
         private readonly string $name,
@@ -12,8 +12,7 @@ class ModelDefinition
         private array           $relations = [],
         private bool            $useFillable = true,
         private bool            $useSoftDelete = false,
-    )
-    {
+    ) {
     }
 
     public function getName(): string

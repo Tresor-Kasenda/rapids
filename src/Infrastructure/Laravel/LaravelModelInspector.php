@@ -7,12 +7,12 @@ namespace Rapids\Rapids\Infrastructure\Laravel;
 use Illuminate\Support\Facades\Schema;
 use Rapids\Rapids\Contract\ModelInspectorInterface;
 
-class LaravelModelInspector implements ModelInspectorInterface
+final class LaravelModelInspector implements ModelInspectorInterface
 {
     public function getExistingFields(string $modelName): array
     {
         $modelClass = "App\\Models\\{$modelName}";
-        if (!class_exists($modelClass)) {
+        if ( ! class_exists($modelClass)) {
             return [];
         }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rapids\Rapids\Infrastructure\Laravel;
 
 use Rapids\Rapids\Contract\PromptServiceInterface;
+
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\error;
 use function Laravel\Prompts\info;
@@ -13,7 +14,7 @@ use function Laravel\Prompts\select;
 use function Laravel\Prompts\table;
 use function Laravel\Prompts\text;
 
-class LaravelPromptService implements PromptServiceInterface
+final class LaravelPromptService implements PromptServiceInterface
 {
     public function text(string $label, string $placeholder = '', string $default = ''): string
     {
@@ -27,7 +28,7 @@ class LaravelPromptService implements PromptServiceInterface
 
     public function search(string $label, array $options, ?string $default = null): string
     {
-        return search(label: $label, options: fn() => $options);
+        return search(label: $label, options: fn () => $options);
     }
 
     public function confirm(string $label, bool $default = false): bool

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rapids\Rapids\Concerns;
 
 use Illuminate\Support\Facades\Schema;
+
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\search;
 use function Laravel\Prompts\text;
@@ -41,7 +42,7 @@ final class ModelFields
 
             $fieldType = search(
                 label: 'Select field type',
-                options: fn() => [
+                options: fn () => [
                     'string' => 'String',
                     'text' => 'Text',
                     'integer' => 'Integer',

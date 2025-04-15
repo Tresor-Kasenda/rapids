@@ -1,13 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Rapids\Rapids\Infrastructure\Laravel;
 
 use Rapids\Rapids\Contract\ServiceInterface;
+
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\search;
 use function Laravel\Prompts\text;
 
-class PromptService implements ServiceInterface
+final class PromptService implements ServiceInterface
 {
     public function text(string $label, string $placeholder = '', bool $required = false): string
     {
@@ -27,7 +30,7 @@ class PromptService implements ServiceInterface
     {
         return search(
             label: $label,
-            options: fn() => [
+            options: fn () => [
                 'hasOne' => 'Has One',
                 'belongsTo' => 'Belongs To',
                 'belongsToMany' => 'Belongs To Many',
@@ -44,7 +47,7 @@ class PromptService implements ServiceInterface
     {
         return search(
             label: $label,
-            options: fn() => [
+            options: fn () => [
                 'hasOne' => 'Has One',
                 'belongsTo' => 'Belongs To',
                 'belongsToMany' => 'Belongs To Many',
@@ -67,7 +70,7 @@ class PromptService implements ServiceInterface
     {
         return search(
             label: $label,
-            options: fn() => $options,
+            options: fn () => $options,
             placeholder: 'Select an option'
         );
     }

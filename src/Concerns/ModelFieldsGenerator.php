@@ -9,7 +9,7 @@ use Rapids\Rapids\Contract\PromptServiceInterface;
 use Rapids\Rapids\Infrastructure\Laravel\LaravelModelInspector;
 use Rapids\Rapids\Infrastructure\Laravel\LaravelPromptService;
 
-class ModelFieldsGenerator
+final class ModelFieldsGenerator
 {
     private ModelInspectorInterface $modelInspector;
     private PromptServiceInterface $promptService;
@@ -20,8 +20,7 @@ class ModelFieldsGenerator
         private readonly string  $modelName,
         ?ModelInspectorInterface $modelInspector = null,
         ?PromptServiceInterface  $promptService = null
-    )
-    {
+    ) {
         $this->modelInspector = $modelInspector ?? new LaravelModelInspector();
         $this->promptService = $promptService ?? new LaravelPromptService();
     }
@@ -46,16 +45,16 @@ class ModelFieldsGenerator
                 empty($this->fields) ? 'add' : null
             );
 
-            if ($action === 'done') {
+            if ('done' === $action) {
                 break;
             }
 
-            if ($action === 'delete') {
+            if ('delete' === $action) {
                 $this->deleteField();
                 continue;
             }
 
-            if ($action === 'edit') {
+            if ('edit' === $action) {
                 $this->editField();
                 continue;
             }
@@ -125,7 +124,7 @@ class ModelFieldsGenerator
     private function collectFieldOptions(string $fieldName, array $defaults = []): array
     {
         $fieldType = $this->promptService->search(
-            "Select field type" . (!empty($defaults) ? " for '{$fieldName}'" : ""),
+            "Select field type".( ! empty($defaults) ? " for '{$fieldName}'" : ""),
             [
                 'string' => 'String',
                 'text' => 'Text',

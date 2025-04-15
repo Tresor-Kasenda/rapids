@@ -13,14 +13,13 @@ use Rapids\Rapids\Contract\ServiceInterface;
 use Rapids\Rapids\Domain\Model\ModelDefinition;
 use RuntimeException;
 
-readonly class ModelGenerator implements ModelGeneratorInterface
+final readonly class ModelGenerator implements ModelGeneratorInterface
 {
     public function __construct(
         private FileSystemInterface          $fileSystem,
         private RelationshipServiceInterface $relationshipService,
         private ServiceInterface             $promptService
-    )
-    {
+    ) {
     }
 
     public function generateModel(ModelDefinition $modelDefinition): void
@@ -58,7 +57,7 @@ readonly class ModelGenerator implements ModelGeneratorInterface
 
         // Generate protection array string
         $protectionStr = match ($protectionType) {
-            'fillable' => "\n    protected \$fillable = ['" . implode("', '", $fieldNames) . "'];",
+            'fillable' => "\n    protected \$fillable = ['".implode("', '", $fieldNames)."'];",
             'guarded' => "\n    protected \$guarded = [];" // Empty guarded means all fields are mass assignable
         };
 
@@ -132,7 +131,7 @@ readonly class ModelGenerator implements ModelGeneratorInterface
             "Select inverse relationship type for {$relatedModelName} to {$modelName}"
         );
 
-        if ($inverseRelation !== 'none') {
+        if ('none' !== $inverseRelation) {
             $this->addRelationToRelatedModel($relatedModelName, $modelName, $inverseRelation);
         }
     }
@@ -141,7 +140,7 @@ readonly class ModelGenerator implements ModelGeneratorInterface
     {
         $modelPath = app_path("Models/{$relatedModelName}.php");
 
-        if (!$this->fileSystem->exists($modelPath)) {
+        if ( ! $this->fileSystem->exists($modelPath)) {
             $this->promptService->info("Related model file not found: {$modelPath}");
             return;
         }
@@ -183,7 +182,7 @@ readonly class ModelGenerator implements ModelGeneratorInterface
                 "Select inverse relationship type for {$relatedModel} to {$modelName}"
             );
 
-            if ($inverseRelation !== 'none') {
+            if ('none' !== $inverseRelation) {
                 $this->addRelationToRelatedModel($relatedModel, $modelName, $inverseRelation);
             }
         }

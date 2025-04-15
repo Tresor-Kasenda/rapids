@@ -19,8 +19,8 @@ final class RapidsServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->publishes([
-            __DIR__ . '/../config/rapids.php' => config_path('rapids.php'),
-            __DIR__ . '/stubs' => base_path('stubs/vendor/rapids'),
+            __DIR__.'/../config/rapids.php' => config_path('rapids.php'),
+            __DIR__.'/stubs' => base_path('stubs/vendor/rapids'),
         ], 'rapids');
 
         if ($this->app->runningInConsole()) {
@@ -37,7 +37,7 @@ final class RapidsServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(
-            __DIR__ . '/../config/rapids.php',
+            __DIR__.'/../config/rapids.php',
             'rapids'
         );
 

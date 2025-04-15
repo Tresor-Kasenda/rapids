@@ -18,6 +18,7 @@ use Rapids\Rapids\Infrastructure\Laravel\LaravelFileSystem;
 use Rapids\Rapids\Infrastructure\Laravel\LaravelRelationshipService;
 use Rapids\Rapids\Infrastructure\Laravel\PromptService;
 use Rapids\Rapids\Relations\RelationshipGeneration;
+
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\search;
@@ -44,19 +45,19 @@ final class RapidsModels extends Command
     {
         $modelPath = app_path('Models');
         $modelFiles = array_map(
-            fn($file) => pathinfo($file, PATHINFO_FILENAME),
-            glob($modelPath . '/*.php')
+            fn ($file) => pathinfo($file, PATHINFO_FILENAME),
+            glob($modelPath.'/*.php')
         );
 
-        $availableModels = array_filter($modelFiles, fn($model) => class_exists("App\\Models\\{$model}"));
+        $availableModels = array_filter($modelFiles, fn ($model) => class_exists("App\\Models\\{$model}"));
 
         $modelName = $this->argument('name') ?? text(
             label: 'Enter model name (without "App\\Models\\")',
             placeholder: 'e.g. User, Post, Product',
             required: true,
-            validate: fn(string $value) => match (true) {
+            validate: fn (string $value) => match (true) {
                 mb_strlen($value) < 2 => 'The model name must be at least 2 characters.',
-                !preg_match('/^[A-Za-z]+$/', $value) => 'The model name must contain only letters.',
+                ! preg_match('/^[A-Za-z]+$/', $value) => 'The model name must contain only letters.',
                 default => null
             }
         );
@@ -66,7 +67,7 @@ final class RapidsModels extends Command
 
             $choice = search(
                 label: 'What would you like to do?',
-                options: fn() => [
+                options: fn () => [
                     'new' => 'Enter a different model name',
                     'migration' => 'Add new migration for existing model',
                     'cancel' => 'Cancel operation'
@@ -114,7 +115,7 @@ final class RapidsModels extends Command
 
                 $currentModelRelation = search(
                     label: "Select relationship type for {$this->modelName} to {$relatedModelName}",
-                    options: fn() => [
+                    options: fn () => [
                         'belongsTo' => 'Belongs To',
                         'hasOne' => 'Has One',
                         'hasMany' => 'Has Many',
@@ -132,7 +133,7 @@ final class RapidsModels extends Command
 
                 $inverseRelation = search(
                     label: "Select inverse relationship type for {$relatedModelName} to {$this->modelName}",
-                    options: fn() => [
+                    options: fn () => [
                         'hasMany' => 'Has Many',
                         'hasOne' => 'Has One',
                         'belongsTo' => 'Belongs To',
@@ -165,8 +166,8 @@ final class RapidsModels extends Command
             }
         }
 
-        $migrationName = 'add_fields_to_' . Str::snake(Str::pluralStudly($modelName)) . '_table';
-        $migrationFile = database_path("migrations/" . date('Y_m_d_His_') . $migrationName . '.php');
+        $migrationName = 'add_fields_to_'.Str::snake(Str::pluralStudly($modelName)).'_table';
+        $migrationFile = database_path("migrations/".date('Y_m_d_His_').$migrationName.'.php');
 
         $stub = File::get(config('rapids.stubs.migration.alter'));
         $tableFields = new MigrationGenerator($this->modelName)
@@ -187,7 +188,7 @@ final class RapidsModels extends Command
     {
         $modelPath = app_path("Models/{$modelName}.php");
 
-        if (!File::exists($modelPath)) {
+        if ( ! File::exists($modelPath)) {
             info("Model file not found: {$modelPath}");
             return;
         }

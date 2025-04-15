@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Rapids\Rapids\Console;
 
 use Illuminate\Console\Command;
@@ -10,7 +12,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use ReflectionClass;
 
-class AntiPatternDetectorCommand extends Command
+final class AntiPatternDetectorCommand extends Command
 {
     protected $signature = 'rapids:detect-antipatterns
                               {--path=app : Path to scan for Laravel files}
@@ -32,7 +34,7 @@ class AntiPatternDetectorCommand extends Command
 
         $this->displayResults();
 
-        if ($this->option('fix') && !empty($this->issues)) {
+        if ($this->option('fix') && ! empty($this->issues)) {
             $this->fixIssues();
         }
 
@@ -48,14 +50,20 @@ class AntiPatternDetectorCommand extends Command
             $namespace = $this->extractNamespace($content);
             $className = $this->extractClassName($content);
 
-            if (!$className || !$namespace) continue;
+            if ( ! $className || ! $namespace) {
+                continue;
+            }
 
-            $fullClassName = $namespace . '\\' . $className;
+            $fullClassName = $namespace.'\\'.$className;
 
-            if (!class_exists($fullClassName)) continue;
+            if ( ! class_exists($fullClassName)) {
+                continue;
+            }
 
             $reflection = new ReflectionClass($fullClassName);
-            if (!$reflection->isSubclassOf(Model::class)) continue;
+            if ( ! $reflection->isSubclassOf(Model::class)) {
+                continue;
+            }
 
             // Check for relations without eager loading
             $this->analyzeModelRelations($reflection, $fullClassName, $file);
@@ -88,7 +96,9 @@ class AntiPatternDetectorCommand extends Command
         $files = File::allFiles($this->option('path'));
 
         foreach ($files as $file) {
-            if ($file->getExtension() !== 'php') continue;
+            if ('php' !== $file->getExtension()) {
+                continue;
+            }
 
             $content = file_get_contents($file->getPathname());
 
@@ -143,18 +153,20 @@ class AntiPatternDetectorCommand extends Command
         $models = $this->findAllModels();
 
         foreach ($models as $model) {
-            $table = (new $model)->getTable();
-            if (!Schema::hasTable($table)) continue;
+            $table = (new $model())->getTable();
+            if ( ! Schema::hasTable($table)) {
+                continue;
+            }
 
             // Analyze foreign keys
             $foreignKeys = $this->getForeignKeys($table);
             foreach ($foreignKeys as $column) {
-                if (!Schema::hasIndex($table, [$column])) {
+                if ( ! Schema::hasIndex($table, [$column])) {
                     $this->addIssue(
                         'missing-index',
                         $table,
-                        "Missing index on foreign key column '$column'",
-                        "Add index: \$table->index('$column');",
+                        "Missing index on foreign key column '{$column}'",
+                        "Add index: \$table->index('{$column}');",
                         [$column]
                     );
                 }
@@ -186,7 +198,9 @@ class AntiPatternDetectorCommand extends Command
         $columnCounts = [];
 
         foreach ($queries as $query) {
-            if (stripos($query['query'], $table) === false) continue;
+            if (false === mb_stripos($query['query'], $table)) {
+                continue;
+            }
 
             if (preg_match_all('/where\s+([^\s=]+)/', $query['query'], $matches)) {
                 foreach ($matches[1] as $column) {
@@ -199,11 +213,11 @@ class AntiPatternDetectorCommand extends Command
         $frequentColumns = array_slice($columnCounts, 0, 5, true);
 
         foreach ($frequentColumns as $column => $count) {
-            if ($count > 10 && !Schema::hasIndex($table, [$column])) {
+            if ($count > 10 && ! Schema::hasIndex($table, [$column])) {
                 $this->addIssue(
                     'missing-index',
                     $table,
-                    "Frequently queried column '$column' has no index",
+                    "Frequently queried column '{$column}' has no index",
                     "Consider adding index for frequently queried column",
                     [$column]
                 );
@@ -249,7 +263,7 @@ class AntiPatternDetectorCommand extends Command
             $this->line("Issue: {$issue['description']}");
             $this->line("Suggestion: {$issue['suggestion']}");
 
-            if (!empty($issue['snippets'])) {
+            if ( ! empty($issue['snippets'])) {
                 $this->line('Code snippets:');
                 foreach ($issue['snippets'] as $snippet) {
                     $this->line("  - {$snippet}");
@@ -332,7 +346,7 @@ class AntiPatternDetectorCommand extends Command
         $migration .= "    }\n";
         $migration .= "}\n";
 
-        $filename = date('Y_m_d_His') . "_add_index_to_{$table}_table.php";
+        $filename = date('Y_m_d_His')."_add_index_to_{$table}_table.php";
         File::put(database_path("migrations/{$filename}"), $migration);
 
         $this->info("Generated migration for adding index on {$table}.{$column}");

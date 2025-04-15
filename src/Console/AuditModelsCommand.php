@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Rapids\Rapids\Console;
 
 use Illuminate\Console\Command;
@@ -11,11 +13,12 @@ use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
 use Throwable;
+
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\table;
 use function Laravel\Prompts\warning;
 
-class AuditModelsCommand extends Command
+final class AuditModelsCommand extends Command
 {
     protected $signature = 'rapids:audit-insight
                             {--path=app/Models : Path to Laravel models directory or specific model file}
@@ -28,20 +31,19 @@ class AuditModelsCommand extends Command
 
     public function __construct(
         private readonly FileSystemPort $fileSystem
-    )
-    {
+    ) {
         parent::__construct();
     }
 
     public function handle(): int
     {
         $pathOption = $this->option('path');
-        $isDefaultPath = $pathOption === 'app/Models';
+        $isDefaultPath = 'app/Models' === $pathOption;
 
         if ($this->isSingleModelPath($pathOption)) {
             $modelPath = $this->resolveModelPath($pathOption);
             if ($modelPath) {
-                info('Performing detailed audit on model: ' . $modelPath);
+                info('Performing detailed audit on model: '.$modelPath);
                 $this->auditSingleModelDetailed($modelPath);
                 return self::SUCCESS;
             } else {
@@ -54,15 +56,15 @@ class AuditModelsCommand extends Command
             info('Auditing all models in the project...');
             $modelFiles = $this->findAllProjectModels();
         } else {
-            info('Auditing models in: ' . $pathOption);
+            info('Auditing models in: '.$pathOption);
             $modelFiles = $this->findModelFiles($pathOption);
         }
 
-        info('Found ' . count($modelFiles) . ' model files');
+        info('Found '.count($modelFiles).' model files');
 
         $this->batchProcessModels($modelFiles);
 
-        if (defined('STDOUT') && !posix_isatty(STDOUT)) {
+        if (defined('STDOUT') && ! posix_isatty(STDOUT)) {
             $outputPath = $this->option('output') ?? 'docs/database-schema.md';
             $documentation = $this->generateDocumentationOutput($outputPath);
             echo $documentation;
@@ -77,7 +79,7 @@ class AuditModelsCommand extends Command
     {
         // Check if path is for a single model file (either full path or just model name)
         return str_ends_with($path, '.php') ||
-            !str_contains($path, '/') ||
+            ! str_contains($path, '/') ||
             file_exists(base_path("app/Models/{$path}.php"));
     }
 
@@ -87,12 +89,12 @@ class AuditModelsCommand extends Command
             return base_path($path);
         }
 
-        if (!str_contains($path, '/') && file_exists(base_path("app/Models/{$path}.php"))) {
+        if ( ! str_contains($path, '/') && file_exists(base_path("app/Models/{$path}.php"))) {
             return base_path("app/Models/{$path}.php");
         }
 
-        if (file_exists(base_path($path . '.php'))) {
-            return base_path($path . '.php');
+        if (file_exists(base_path($path.'.php'))) {
+            return base_path($path.'.php');
         }
 
         return null;
@@ -103,15 +105,15 @@ class AuditModelsCommand extends Command
         $content = $this->fileSystem->get($filePath);
         $namespace = $this->extractNamespace($content);
         $className = $this->extractClassName($content);
-        $fullClassName = $namespace . '\\' . $className;
+        $fullClassName = $namespace.'\\'.$className;
 
         try {
-            if (!class_exists($fullClassName)) {
+            if ( ! class_exists($fullClassName)) {
                 require_once $filePath;
             }
 
             // Check if class actually extends Model
-            if (!is_subclass_of($fullClassName, 'Illuminate\Database\Eloquent\Model')) {
+            if ( ! is_subclass_of($fullClassName, 'Illuminate\Database\Eloquent\Model')) {
                 warning("Skipping {$className}: Not an Eloquent Model");
                 return;
             }
@@ -169,13 +171,13 @@ class AuditModelsCommand extends Command
             $this->info("📊 MODEL PROPERTIES:");
             $this->line("Table Name: {$tableName}");
             $this->line("Primary Key: {$primaryKey}");
-            $this->line("Uses Timestamps: " . ($model->usesTimestamps() ? 'Yes' : 'No'));
-            $this->line("Uses Soft Deletes: " . ($usesSoftDeletes ? 'Yes' : 'No'));
+            $this->line("Uses Timestamps: ".($model->usesTimestamps() ? 'Yes' : 'No'));
+            $this->line("Uses Soft Deletes: ".($usesSoftDeletes ? 'Yes' : 'No'));
 
             $this->newLine();
 
             // Fields analysis
-            $this->info("🔤 FIELDS ANALYSIS (" . count($fields) . " fields):");
+            $this->info("🔤 FIELDS ANALYSIS (".count($fields)." fields):");
 
             $fieldsData = [];
             foreach ($fields as $field) {
@@ -190,7 +192,7 @@ class AuditModelsCommand extends Command
             $this->newLine();
 
             // Relations analysis
-            $this->info("🔗 RELATIONS ANALYSIS (" . count($relations) . " relations):");
+            $this->info("🔗 RELATIONS ANALYSIS (".count($relations)." relations):");
 
             if (empty($relations)) {
                 $this->line("No relations defined in this model.");
@@ -211,7 +213,7 @@ class AuditModelsCommand extends Command
             // MODEL USAGE STATISTICS
             $this->info("📊 MODEL USAGE STATISTICS:");
             $referencingModels = $this->findModelsReferencingThis($className);
-            $this->line("Referenced By Models: " . count($referencingModels));
+            $this->line("Referenced By Models: ".count($referencingModels));
             $dbSize = $this->estimateDatabaseSize($tableName);
             try {
                 $usageStatsData = [
@@ -245,7 +247,7 @@ class AuditModelsCommand extends Command
                 $this->table([], $usageStatsData);
 
             } catch (Throwable $e) {
-                warning("Could not retrieve usage statistics: " . $e->getMessage());
+                warning("Could not retrieve usage statistics: ".$e->getMessage());
             }
 
             $this->newLine();
@@ -262,7 +264,7 @@ class AuditModelsCommand extends Command
                     $this->displaySampleData($latestRecords, ['created_at', 'updated_at', 'deleted_at']);
                 }
             } catch (Throwable $e) {
-                warning("Could not retrieve database statistics: " . $e->getMessage());
+                warning("Could not retrieve database statistics: ".$e->getMessage());
             }
 
             $this->newLine();
@@ -270,7 +272,7 @@ class AuditModelsCommand extends Command
             // File History (Git history)
             $this->info("📜 FILE HISTORY:");
             $gitHistory = $this->getGitHistory($filePath);
-            if (!empty($gitHistory)) {
+            if ( ! empty($gitHistory)) {
                 table(['Date', 'Author', 'Commit Message'], $gitHistory);
             } else {
                 $this->line("No git history available or git not installed.");
@@ -370,7 +372,7 @@ class AuditModelsCommand extends Command
 
     private function mapSqliteType(string $sqliteType): string
     {
-        return match (strtolower($sqliteType)) {
+        return match (mb_strtolower($sqliteType)) {
             'integer', 'int' => 'integer',
             'real', 'float', 'double' => 'float',
             'blob' => 'binary',
@@ -405,7 +407,7 @@ class AuditModelsCommand extends Command
 
         foreach ($methods as $method) {
             // Skip inherited and factory-related methods
-            if ($method->class != get_class($model) || $this->isFactoryMethod($method->name, $factoryPatterns)) {
+            if ($method->class !== get_class($model) || $this->isFactoryMethod($method->name, $factoryPatterns)) {
                 continue;
             }
 
@@ -417,7 +419,7 @@ class AuditModelsCommand extends Command
             }
 
             foreach ($relationTypes as $relationType) {
-                if (str_contains($code, '$this->' . $relationType)) {
+                if (str_contains($code, '$this->'.$relationType)) {
                     $relatedModel = $this->extractRelatedModel($code);
                     $relations[] = [
                         'name' => $method->name,
@@ -477,7 +479,7 @@ class AuditModelsCommand extends Command
     {
         // Pattern to match the class name in relations like return $this->hasMany(Post::class)
         if (preg_match('/\$this->\w+\s*\(\s*([^:,]+)::class/', $code, $matches)) {
-            return trim($matches[1]);
+            return mb_trim($matches[1]);
         }
 
         // Pattern for string class names like 'App\Models\Post'
@@ -516,7 +518,7 @@ class AuditModelsCommand extends Command
 
         $bytes /= pow(1024, $pow);
 
-        return round($bytes, $precision) . ' ' . $units[$pow];
+        return round($bytes, $precision).' '.$units[$pow];
     }
 
     private function findModelsReferencingThis(string $modelName): array
@@ -542,7 +544,7 @@ class AuditModelsCommand extends Command
 
             $connection = DB::connection()->getPdo()->getAttribute(PDO::ATTR_DRIVER_NAME);
 
-            if ($connection === 'mysql') {
+            if ('mysql' === $connection) {
                 $result = DB::select("
                     SELECT
                         round(((data_length + index_length) / 1024 / 1024), 2) as 'size_mb'
@@ -551,7 +553,7 @@ class AuditModelsCommand extends Command
                     AND table_name = ?
                 ", [$tableName]);
 
-                if (!empty($result)) {
+                if ( ! empty($result)) {
                     $size = $result[0]->size_mb;
                 }
             }
@@ -564,7 +566,7 @@ class AuditModelsCommand extends Command
 
     private function displaySampleData($records, array $excludeFields = []): void
     {
-        if (count($records) === 0) {
+        if (0 === count($records)) {
             $this->line("No records found.");
             return;
         }
@@ -585,13 +587,13 @@ class AuditModelsCommand extends Command
                 $value = $recordArray[$key] ?? null;
 
                 // Skip null values
-                if (is_null($value)) {
+                if (null === $value) {
                     continue;
                 }
 
                 // Truncate long values
-                if (is_string($value) && strlen($value) > 30) {
-                    $value = substr($value, 0, 27) . '...';
+                if (is_string($value) && mb_strlen($value) > 30) {
+                    $value = mb_substr($value, 0, 27).'...';
                 }
 
                 $row[$key] = $value;
@@ -625,11 +627,11 @@ class AuditModelsCommand extends Command
     private function getGitHistory(string $filePath): array
     {
         try {
-            $relativePath = str_replace(base_path() . '/', '', $filePath);
-            $command = "git log -5 --pretty=format:'%ad|%an|%s' --date=short -- " . escapeshellarg($relativePath);
+            $relativePath = str_replace(base_path().'/', '', $filePath);
+            $command = "git log -5 --pretty=format:'%ad|%an|%s' --date=short -- ".escapeshellarg($relativePath);
             $output = shell_exec($command);
 
-            if (!$output) {
+            if ( ! $output) {
                 return [];
             }
 
@@ -638,7 +640,7 @@ class AuditModelsCommand extends Command
 
             foreach ($lines as $line) {
                 $parts = explode('|', $line);
-                if (count($parts) === 3) {
+                if (3 === count($parts)) {
                     $history[] = [
                         'Date' => $parts[0],
                         'Author' => $parts[1],
@@ -667,7 +669,7 @@ class AuditModelsCommand extends Command
 
         foreach ($directories as $directory) {
             $path = base_path($directory);
-            if (!is_dir($path)) {
+            if ( ! is_dir($path)) {
                 continue;
             }
 
@@ -676,9 +678,9 @@ class AuditModelsCommand extends Command
             );
 
             foreach ($iterator as $file) {
-                if ($file->isFile() && $file->getExtension() === 'php') {
+                if ($file->isFile() && 'php' === $file->getExtension()) {
                     $content = file_get_contents($file->getRealPath());
-                    if (preg_match('/\b' . preg_quote($modelName, '/') . '\b/', $content)) {
+                    if (preg_match('/\b'.preg_quote($modelName, '/').'\b/', $content)) {
                         $files[] = $file->getRealPath();
                     }
                 }
@@ -690,7 +692,7 @@ class AuditModelsCommand extends Command
 
     private function displayDependenciesGraph(string $modelName, array $relations, array $referencingFiles): void
     {
-        if (defined('STDOUT') && !posix_isatty(STDOUT)) {
+        if (defined('STDOUT') && ! posix_isatty(STDOUT)) {
             $this->displayMermaidGraph($modelName, $relations, $referencingFiles);
         } else {
             $this->displayAsciiGraph($modelName, $relations, $referencingFiles);
@@ -710,7 +712,7 @@ class AuditModelsCommand extends Command
 
         foreach ($referencingFiles as $file) {
             $nodeId = $this->sanitizeNodeId(basename($file));
-            $label = basename($file) . '<br/>(' . $this->getRelativePath($file) . ')';
+            $label = basename($file).'<br/>('.$this->getRelativePath($file).')';
             $this->line("    {$nodeId}[\"{$label}\"]:::requiredBy;");
             $this->line("    {$nodeId} -->|uses| {$mainNode};");
         }
@@ -719,7 +721,7 @@ class AuditModelsCommand extends Command
         foreach ($requiredModels as $model) {
             $nodeId = $this->sanitizeNodeId($model);
             $path = $this->findModelPath($model);
-            $label = $model . '<br/>(' . $this->getRelativePath($path) . ')';
+            $label = $model.'<br/>('.$this->getRelativePath($path).')';
             $this->line("    {$nodeId}[\"{$label}\"]:::required;");
             $this->line("    {$mainNode} -->|requires| {$nodeId};");
         }
@@ -737,7 +739,7 @@ class AuditModelsCommand extends Command
     {
         $basePath = base_path();
         if (str_starts_with($path, $basePath)) {
-            return substr($path, strlen($basePath) + 1);
+            return mb_substr($path, mb_strlen($basePath) + 1);
         }
         return $path;
     }
@@ -746,7 +748,7 @@ class AuditModelsCommand extends Command
     {
         $models = [];
         foreach ($relations as $relation) {
-            if (!empty($relation['related_model']) && $relation['related_model'] !== 'Unknown') {
+            if ( ! empty($relation['related_model']) && 'Unknown' !== $relation['related_model']) {
                 $models[] = $relation['related_model'];
             }
         }
@@ -762,23 +764,23 @@ class AuditModelsCommand extends Command
         ];
 
         foreach ($commonPaths as $path) {
-            $fullPath = base_path($path . $modelName . '.php');
+            $fullPath = base_path($path.$modelName.'.php');
             if (file_exists($fullPath)) {
                 return $fullPath;
             }
         }
 
-        return 'app/Models/' . $modelName . '.php';
+        return 'app/Models/'.$modelName.'.php';
     }
 
     private function displayAsciiGraph(string $modelName, array $relations, array $referencingFiles): void
     {
         $this->line("\nDependencies Graph:");
-        $this->line('┌' . str_repeat('─', strlen($modelName) + 2) . '┐');
-        $this->line('│ ' . $modelName . ' │');
-        $this->line('└' . str_repeat('─', strlen($modelName) + 2) . '┘');
+        $this->line('┌'.str_repeat('─', mb_strlen($modelName) + 2).'┐');
+        $this->line('│ '.$modelName.' │');
+        $this->line('└'.str_repeat('─', mb_strlen($modelName) + 2).'┘');
 
-        if (!empty($referencingFiles)) {
+        if ( ! empty($referencingFiles)) {
             $this->line("\nRequired by:");
             foreach ($referencingFiles as $index => $file) {
                 $isLast = $index === count($referencingFiles) - 1;
@@ -790,7 +792,7 @@ class AuditModelsCommand extends Command
         }
 
         $requiredModels = $this->getRequiredModels($relations);
-        if (!empty($requiredModels)) {
+        if ( ! empty($requiredModels)) {
             $this->line("\nRequires:");
             foreach ($requiredModels as $index => $model) {
                 $isLast = $index === count($requiredModels) - 1;
@@ -813,7 +815,7 @@ class AuditModelsCommand extends Command
         // Check for potential missing indexes
         $hasIndexableFields = false;
         foreach ($fields as $field) {
-            if (str_contains(strtolower($field->getName()), 'id') && !str_contains(strtolower($field->getName()), 'primary')) {
+            if (str_contains(mb_strtolower($field->getName()), 'id') && ! str_contains(mb_strtolower($field->getName()), 'primary')) {
                 $hasIndexableFields = true;
                 $insightsData[] = [
                     'Missing Indexes',
@@ -842,19 +844,19 @@ class AuditModelsCommand extends Command
         // Check for potential missing foreign keys
         $potentialFks = [];
         foreach ($relations as $relation) {
-            if ($relation['type'] === 'belongsTo' && !empty($relation['related_model'])) {
+            if ('belongsTo' === $relation['type'] && ! empty($relation['related_model'])) {
                 $potentialFks[] = $relation['name'];
             }
         }
 
-        if (!empty($potentialFks)) {
+        if ( ! empty($potentialFks)) {
             $insightsData[] = [
                 'Missing Foreign Keys',
-                'Ensure foreign keys exist for: ' . implode(", ", $potentialFks)
+                'Ensure foreign keys exist for: '.implode(", ", $potentialFks)
             ];
         }
 
-        if (count($insightsData) === 1) {
+        if (1 === count($insightsData)) {
             $this->line("No specific performance insights detected.");
         } else {
             table([], $insightsData);
@@ -864,7 +866,7 @@ class AuditModelsCommand extends Command
     private function analyzeCodeComplexity(string $content): array
     {
         return [
-            'methods' => substr_count($content, 'function'),
+            'methods' => mb_substr_count($content, 'function'),
             'avgMethodLength' => $this->calculateAverageMethodLength($content),
             'complexity' => $this->calculateCyclomaticComplexity($content)
         ];
@@ -879,7 +881,7 @@ class AuditModelsCommand extends Command
 
         $totalLines = 0;
         foreach ($matches[1] as $methodBody) {
-            $totalLines += substr_count($methodBody, "\n") + 1;
+            $totalLines += mb_substr_count($methodBody, "\n") + 1;
         }
 
         return (int)($totalLines / count($matches[1]));
@@ -891,16 +893,16 @@ class AuditModelsCommand extends Command
         $complexity = 0;
 
         // Count control structures
-        $complexity += substr_count($content, 'if');
-        $complexity += substr_count($content, 'else');
-        $complexity += substr_count($content, 'case');
-        $complexity += substr_count($content, 'for');
-        $complexity += substr_count($content, 'foreach');
-        $complexity += substr_count($content, 'while');
-        $complexity += substr_count($content, 'do');
-        $complexity += substr_count($content, '&&');
-        $complexity += substr_count($content, '||');
-        $complexity += substr_count($content, '?');
+        $complexity += mb_substr_count($content, 'if');
+        $complexity += mb_substr_count($content, 'else');
+        $complexity += mb_substr_count($content, 'case');
+        $complexity += mb_substr_count($content, 'for');
+        $complexity += mb_substr_count($content, 'foreach');
+        $complexity += mb_substr_count($content, 'while');
+        $complexity += mb_substr_count($content, 'do');
+        $complexity += mb_substr_count($content, '&&');
+        $complexity += mb_substr_count($content, '||');
+        $complexity += mb_substr_count($content, '?');
 
         // Base complexity is 1
         return $complexity + 1;
@@ -918,14 +920,14 @@ class AuditModelsCommand extends Command
         preg_match('/class\s+\w+(?:\s+extends\s+\w+)?(?:\s+implements\s+([\w\s,]+))?/m', $content, $implementsMatch);
         preg_match_all('/use\s+([\w\\\\]+)(\s+as\s+[\w]+)?;/m', $content, $useMatches);
         $interfaces = isset($implementsMatch[1]) ? array_map('trim', explode(',', $implementsMatch[1])) : [];
-        $traits = array_filter($useMatches[1] ?? [], fn($use) => str_contains($use, 'Trait') || class_exists($use) && (new ReflectionClass($use))->isTrait());
+        $traits = array_filter($useMatches[1] ?? [], fn ($use) => str_contains($use, 'Trait') || class_exists($use) && (new ReflectionClass($use))->isTrait());
 
         // Documentation coverage
         preg_match_all('!/\*\*.*?\*/!s', $content, $docblockMatches);
         $docCount = count($docblockMatches[0] ?? []);
 
         // Count lines of code
-        $lineCount = substr_count($content, "\n") + 1;
+        $lineCount = mb_substr_count($content, "\n") + 1;
 
         // Display metrics
         table([
@@ -933,7 +935,7 @@ class AuditModelsCommand extends Command
         ], [
             ['Lines of Code', $lineCount, $lineCount > 300 ? 'Consider splitting class' : 'OK'],
             ['Properties', $propertiesCount, ''],
-            ['Traits Used', count($traits), implode(', ', array_map(fn($trait) => basename(str_replace('\\', '/', $trait)), $traits))],
+            ['Traits Used', count($traits), implode(', ', array_map(fn ($trait) => basename(str_replace('\\', '/', $trait)), $traits))],
             ['Implements', count($interfaces), implode(', ', $interfaces)],
             ['Documentation %', $docCount > 0 ? round(($docCount / ($propertiesCount + $this->analyzeCodeComplexity($content)['methods'])) * 100) : 0, $docCount > 0 ? 'OK' : 'Consider adding documentation']
         ]);
@@ -954,7 +956,7 @@ class AuditModelsCommand extends Command
         foreach ($directories as $directory) {
             $basePath = base_path($directory);
 
-            if (!is_dir($basePath)) {
+            if ( ! is_dir($basePath)) {
                 continue;
             }
 
@@ -964,7 +966,7 @@ class AuditModelsCommand extends Command
             );
 
             foreach ($iterator as $file) {
-                if ($file->isFile() && $file->getExtension() === 'php') {
+                if ($file->isFile() && 'php' === $file->getExtension()) {
                     $filePath = $file->getPathname();
                     $content = $this->fileSystem->get($filePath);
 
@@ -984,7 +986,7 @@ class AuditModelsCommand extends Command
     private function findModelFiles(string $path): array
     {
         $basePath = base_path($path);
-        $files = glob($basePath . '/*.php');
+        $files = glob($basePath.'/*.php');
 
         return array_filter($files, function ($file) {
             $content = $this->fileSystem->get($file);
@@ -1001,9 +1003,9 @@ class AuditModelsCommand extends Command
             $content = $this->fileSystem->get($modelFile);
             $namespace = $this->extractNamespace($content);
             $className = $this->extractClassName($content);
-            $fullClassName = $namespace . '\\' . $className;
+            $fullClassName = $namespace.'\\'.$className;
 
-            if (!class_exists($fullClassName)) {
+            if ( ! class_exists($fullClassName)) {
                 require_once $modelFile;
             }
 
@@ -1034,7 +1036,7 @@ class AuditModelsCommand extends Command
 
     private function generateDocumentationOutput(string $outputPath): string
     {
-        $extension = strtolower(pathinfo($outputPath, PATHINFO_EXTENSION));
+        $extension = mb_strtolower(pathinfo($outputPath, PATHINFO_EXTENSION));
 
         return match ($extension) {
             'json' => $this->generateJsonDocumentation(),
@@ -1055,7 +1057,7 @@ class AuditModelsCommand extends Command
         foreach ($this->modelInfo as $modelName => $info) {
             $documentation['models'][$modelName] = [
                 'fields' => array_map(
-                    fn($field) => [
+                    fn ($field) => [
                         'name' => mb_convert_encoding($field->getName(), 'UTF-8', 'auto'),
                         'type' => mb_convert_encoding($field->getType(), 'UTF-8', 'auto'),
                         'is_relation' => $field->isRelation(),
@@ -1063,7 +1065,7 @@ class AuditModelsCommand extends Command
                     $info['fields']
                 ),
                 'relations' => array_map(
-                    fn($relation) => [
+                    fn ($relation) => [
                         'name' => mb_convert_encoding($relation['name'], 'UTF-8', 'auto'),
                         'type' => mb_convert_encoding($relation['type'], 'UTF-8', 'auto'),
                         'related_model' => mb_convert_encoding($relation['related_model'] ?? 'Unknown', 'UTF-8', 'auto'),
@@ -1079,11 +1081,11 @@ class AuditModelsCommand extends Command
     private function generateMarkdownDocumentation(): string
     {
         $output = "# Database Schema Documentation\n\n";
-        $output .= "Generated on: " . date('Y-m-d H:i:s') . "\n\n";
+        $output .= "Generated on: ".date('Y-m-d H:i:s')."\n\n";
 
         // Summary section
         $output .= "## Overview\n\n";
-        $output .= "Total Models: " . count($this->modelInfo) . "\n\n";
+        $output .= "Total Models: ".count($this->modelInfo)."\n\n";
 
         // Models table
         $output .= "## Models Summary\n\n";
@@ -1091,7 +1093,8 @@ class AuditModelsCommand extends Command
         $output .= "|-------|---------|------------|\n";
 
         foreach ($this->modelInfo as $modelName => $info) {
-            $output .= sprintf("| %s | %d | %d |\n",
+            $output .= sprintf(
+                "| %s | %d | %d |\n",
                 $modelName,
                 count($info['fields']),
                 count($info['relations'])
@@ -1108,7 +1111,8 @@ class AuditModelsCommand extends Command
             $output .= "| Name | Type | Is Relation |\n";
             $output .= "|------|------|-------------|\n";
             foreach ($info['fields'] as $field) {
-                $output .= sprintf("| %s | %s | %s |\n",
+                $output .= sprintf(
+                    "| %s | %s | %s |\n",
                     $field->getName(),
                     $field->getType(),
                     $field->isRelation() ? 'Yes' : 'No'
@@ -1116,12 +1120,13 @@ class AuditModelsCommand extends Command
             }
 
             // Relations table
-            if (!empty($info['relations'])) {
+            if ( ! empty($info['relations'])) {
                 $output .= "\n#### Relations\n\n";
                 $output .= "| Name | Type | Related To |\n";
                 $output .= "|------|------|------------|\n";
                 foreach ($info['relations'] as $relation) {
-                    $output .= sprintf("| %s | %s | %s |\n",
+                    $output .= sprintf(
+                        "| %s | %s | %s |\n",
                         $relation['name'],
                         $relation['type'],
                         $relation['related_model'] ?? 'Unknown'
@@ -1137,30 +1142,32 @@ class AuditModelsCommand extends Command
     private function generateTextDocumentation(): string
     {
         $output = "DATABASE SCHEMA DOCUMENTATION\n";
-        $output .= str_repeat("=", 30) . "\n\n";
-        $output .= "Generated on: " . date('Y-m-d H:i:s') . "\n\n";
+        $output .= str_repeat("=", 30)."\n\n";
+        $output .= "Generated on: ".date('Y-m-d H:i:s')."\n\n";
 
         $output .= "OVERVIEW\n";
-        $output .= str_repeat("-", 8) . "\n";
-        $output .= "Total Models: " . count($this->modelInfo) . "\n\n";
+        $output .= str_repeat("-", 8)."\n";
+        $output .= "Total Models: ".count($this->modelInfo)."\n\n";
 
         foreach ($this->modelInfo as $modelName => $info) {
             $output .= "MODEL: {$modelName}\n";
-            $output .= str_repeat("-", strlen($modelName) + 7) . "\n\n";
+            $output .= str_repeat("-", mb_strlen($modelName) + 7)."\n\n";
 
             $output .= "Fields:\n";
             foreach ($info['fields'] as $field) {
-                $output .= sprintf("- %s (%s)%s\n",
+                $output .= sprintf(
+                    "- %s (%s)%s\n",
                     $field->getName(),
                     $field->getType(),
                     $field->isRelation() ? " [Relation]" : ""
                 );
             }
 
-            if (!empty($info['relations'])) {
+            if ( ! empty($info['relations'])) {
                 $output .= "\nRelations:\n";
                 foreach ($info['relations'] as $relation) {
-                    $output .= sprintf("- %s: %s -> %s\n",
+                    $output .= sprintf(
+                        "- %s: %s -> %s\n",
                         $relation['name'],
                         $relation['type'],
                         $relation['related_model'] ?? 'Unknown'
@@ -1205,7 +1212,7 @@ class AuditModelsCommand extends Command
             info('Fields:');
             table(['Name', 'Type', 'Is Relation'], $fieldsData);
 
-            if (!empty($info['relations'])) {
+            if ( ! empty($info['relations'])) {
                 $relationsData = [];
                 foreach ($info['relations'] as $relation) {
                     $relationsData[] = [
@@ -1237,7 +1244,7 @@ class AuditModelsCommand extends Command
         // Build relationship mapping
         foreach ($this->modelInfo as $modelName => $info) {
             foreach ($info['relations'] as $relation) {
-                if (!isset($relation['related_model']) || $relation['related_model'] === 'Unknown') {
+                if ( ! isset($relation['related_model']) || 'Unknown' === $relation['related_model']) {
                     continue;
                 }
 

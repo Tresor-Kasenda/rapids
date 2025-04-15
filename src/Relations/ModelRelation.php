@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Rapids\Rapids\Relations;
 
 use function Laravel\Prompts\confirm;
@@ -9,12 +11,11 @@ use function Laravel\Prompts\select;
 use function Laravel\Prompts\table;
 use function Laravel\Prompts\text;
 
-class ModelRelation
+final class ModelRelation
 {
     public function __construct(
         public array $relationFields
-    )
-    {
+    ) {
     }
 
     public function getModelRelations(): array
@@ -36,7 +37,7 @@ class ModelRelation
                 // Get relationship type for current model
                 $currentModelRelation = search(
                     label: "Select relationship type for current model to {$relatedModelName}",
-                    options: fn() => [
+                    options: fn () => [
                         'hasOne' => 'Has One',
                         'belongsTo' => 'Belongs To',
                         'belongsToMany' => 'Belongs To Many',
@@ -56,7 +57,7 @@ class ModelRelation
                 // Get inverse relationship
                 $inverseRelation = search(
                     label: "Select inverse relationship type from {$relatedModelName}",
-                    options: fn() => [
+                    options: fn () => [
                         'hasOne' => 'Has One',
                         'belongsTo' => 'Belongs To',
                         'belongsToMany' => 'Belongs To Many',
@@ -81,7 +82,7 @@ class ModelRelation
                 ];
 
                 // Add inverse relation if selected
-                if ($inverseRelation !== 'none') {
+                if ('none' !== $inverseRelation) {
                     $relations[] = [
                         'type' => $inverseRelation,
                         'model' => $relatedModelName,
@@ -102,11 +103,11 @@ class ModelRelation
         return $relations;
     }
 
-    protected function manageRelations(array &$relations): void
+    private function manageRelations(array &$relations): void
     {
         while (true) {
             // Display current relations
-            if (!empty($relations)) {
+            if ( ! empty($relations)) {
                 info("Current relationships:");
                 $tableData = [];
                 foreach ($relations as $index => $relation) {
@@ -133,26 +134,26 @@ class ModelRelation
                 default: empty($relations) ? 'add' : null
             );
 
-            if ($action === 'done') {
+            if ('done' === $action) {
                 break;
-            } elseif ($action === 'delete' && !empty($relations)) {
+            } elseif ('delete' === $action && ! empty($relations)) {
                 $indexToDelete = select(
                     label: 'Select relationship to delete',
-                    options: array_map(fn($i) => (string)$i, array_keys($relations))
+                    options: array_map(fn ($i) => (string)$i, array_keys($relations))
                 );
                 unset($relations[$indexToDelete]);
                 $relations = array_values($relations); // Re-index array
                 info("Relationship has been deleted.");
                 continue;
-            } elseif ($action === 'edit' && !empty($relations)) {
+            } elseif ('edit' === $action && ! empty($relations)) {
                 $indexToEdit = select(
                     label: 'Select relationship to edit',
-                    options: array_map(fn($i) => (string)$i, array_keys($relations))
+                    options: array_map(fn ($i) => (string)$i, array_keys($relations))
                 );
 
                 $relationType = search(
                     label: 'Select new relationship type',
-                    options: fn() => [
+                    options: fn () => [
                         'hasOne' => 'Has One',
                         'belongsTo' => 'Belongs To',
                         'belongsToMany' => 'Belongs To Many',
@@ -181,10 +182,10 @@ class ModelRelation
 
                 info("Relationship has been updated.");
                 continue;
-            } elseif ($action === 'add') {
+            } elseif ('add' === $action) {
                 $relationType = search(
                     label: 'Select relationship type',
-                    options: fn() => [
+                    options: fn () => [
                         'hasOne' => 'Has One',
                         'belongsTo' => 'Belongs To',
                         'belongsToMany' => 'Belongs To Many',
@@ -215,7 +216,7 @@ class ModelRelation
                 if (confirm(label: "Would you like to add an inverse relationship from {$relatedModel}?", default: true)) {
                     $inverseRelation = search(
                         label: "Select inverse relationship type from {$relatedModel}",
-                        options: fn() => [
+                        options: fn () => [
                             'hasOne' => 'Has One',
                             'belongsTo' => 'Belongs To',
                             'belongsToMany' => 'Belongs To Many',

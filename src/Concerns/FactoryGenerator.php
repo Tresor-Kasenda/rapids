@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Rapids\Rapids\Concerns;
 
 use Exception;
@@ -10,9 +12,10 @@ use Rapids\Rapids\Infrastructure\Repository\LaravelModelRepository;
 use Rapids\Rapids\Infrastructure\Repository\LaravelSchemaRepository;
 use Rapids\Rapids\Services\ModelFieldsService;
 use RuntimeException;
+
 use function Laravel\Prompts\text;
 
-class FactoryGenerator
+final class FactoryGenerator
 {
     /**
      * Maps field types to faker methods
@@ -47,8 +50,7 @@ class FactoryGenerator
         public array          $selectedFields,
         public array          $relationFields,
         private readonly bool $interactive = true
-    )
-    {
+    ) {
     }
 
     /**
@@ -142,9 +144,9 @@ class FactoryGenerator
     {
         if (isset(self::TYPE_MAPPINGS[$type])) {
             return str_replace('{field}', $field, self::TYPE_MAPPINGS[$type]);
-        } elseif ($type === 'enum') {
+        } elseif ('enum' === $type) {
             $values = $options['values'] ?? [];
-            return "'{$field}' => \$this->faker->randomElement(['" . implode("', '", $values) . "']),";
+            return "'{$field}' => \$this->faker->randomElement(['".implode("', '", $values)."']),";
         }
 
         return "'{$field}' => \$this->faker->word,";

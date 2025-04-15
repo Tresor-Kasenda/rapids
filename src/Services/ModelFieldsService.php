@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Rapids\Rapids\Services;
 
 use Rapids\Rapids\Application\UseCase\GetModelFieldsUseCase;
 
-class ModelFieldsService
+final class ModelFieldsService
 {
     private array $selectedFields = [];
     private array $relationFields = [];
@@ -12,8 +14,7 @@ class ModelFieldsService
     public function __construct(
         private readonly string                $modelName,
         private readonly GetModelFieldsUseCase $modelFieldsUseCase
-    )
-    {
+    ) {
     }
 
     public function getModelFields(): array

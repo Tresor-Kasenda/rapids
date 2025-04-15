@@ -1,17 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Rapids\Rapids\Infrastructure\Adapter;
 
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Filesystem\Filesystem;
 use Rapids\Rapids\Application\Port\FileSystemPort;
 
-class FileSystemAdapter implements FileSystemPort
+final class FileSystemAdapter implements FileSystemPort
 {
     public function __construct(
         private Filesystem $filesystem
-    )
-    {
+    ) {
     }
 
     /**

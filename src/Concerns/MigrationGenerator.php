@@ -1,15 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Rapids\Rapids\Concerns;
 
 use Exception;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use RuntimeException;
+
 use function Laravel\Prompts\search;
 use function Laravel\Prompts\text;
 
-class MigrationGenerator
+final class MigrationGenerator
 {
     /**
      * Default constraint types for foreign keys
@@ -27,8 +30,7 @@ class MigrationGenerator
     public function __construct(
         public ?string $modelName,
         private bool   $interactive = true
-    )
-    {
+    ) {
     }
 
     /**
@@ -115,7 +117,7 @@ class MigrationGenerator
 
             $constraintType = search(
                 label: "Select constraint type for {$field}",
-                options: fn() => self::CONSTRAINT_TYPES
+                options: fn () => self::CONSTRAINT_TYPES
             );
         }
 
@@ -130,10 +132,10 @@ class MigrationGenerator
         $nullableMethod = $nullable ? '->nullable()' : '';
 
         return "\$table->foreignId('{$field}')"
-            . "->constrained('{$relatedTable}')"
-            . $constraintMethod
-            . $nullableMethod
-            . ";";
+            ."->constrained('{$relatedTable}')"
+            .$constraintMethod
+            .$nullableMethod
+            .";";
     }
 
     /**
@@ -158,7 +160,7 @@ class MigrationGenerator
             $fieldDefinition .= '->nullable()';
         }
 
-        return $fieldDefinition . ';';
+        return $fieldDefinition.';';
     }
 
     /**
@@ -170,10 +172,10 @@ class MigrationGenerator
      */
     private function generateEnumField(string $field, array $options): string
     {
-        $values = array_map(fn($value) => "'{$value}'", $options['values'] ?? []);
-        $fieldDefinition = "\$table->enum('{$field}', [" . implode(', ', $values) . "])";
+        $values = array_map(fn ($value) => "'{$value}'", $options['values'] ?? []);
+        $fieldDefinition = "\$table->enum('{$field}', [".implode(', ', $values)."])";
 
-        if (!empty($options['values'])) {
+        if ( ! empty($options['values'])) {
             $defaultValue = $options['values'][0];
             $fieldDefinition .= "->default('{$defaultValue}')";
         }
@@ -182,7 +184,7 @@ class MigrationGenerator
             $fieldDefinition .= '->nullable()';
         }
 
-        return $fieldDefinition . ';';
+        return $fieldDefinition.';';
     }
 
     /**

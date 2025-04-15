@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Rapids\Rapids\Infrastructure\Repository;
 
 use Illuminate\Support\Facades\Schema;
 use Rapids\Rapids\Domain\Port\SchemaRepositoryInterface;
 
-class LaravelSchemaRepository implements SchemaRepositoryInterface
+final class LaravelSchemaRepository implements SchemaRepositoryInterface
 {
     public function getTableName(object $model): string
     {

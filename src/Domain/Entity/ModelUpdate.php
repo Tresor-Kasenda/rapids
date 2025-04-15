@@ -1,18 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Rapids\Rapids\Domain\Entity;
 
 use Illuminate\Support\Str;
 
-class ModelUpdate
+final class ModelUpdate
 {
     /** @var ModelField[] */
     private array $fields = [];
 
     public function __construct(
         private readonly string $modelName
-    )
-    {
+    ) {
     }
 
     public function getModelName(): string

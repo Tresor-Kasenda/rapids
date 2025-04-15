@@ -1,25 +1,26 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Rapids\Rapids\Application\UseCase;
 
 use Rapids\Rapids\Domain\Port\ModelRepositoryInterface;
 use Rapids\Rapids\Domain\Port\SchemaRepositoryInterface;
 use RuntimeException;
 
-class GetModelFieldsUseCase
+final class GetModelFieldsUseCase
 {
     private array $systemColumns = ['id', 'created_at', 'updated_at', 'deleted_at'];
 
     public function __construct(
         private readonly ModelRepositoryInterface  $modelRepository,
         private readonly SchemaRepositoryInterface $schemaRepository
-    )
-    {
+    ) {
     }
 
     public function execute(string $modelName): array
     {
-        if (!$this->modelRepository->exists($modelName)) {
+        if ( ! $this->modelRepository->exists($modelName)) {
             throw new RuntimeException("Model {$modelName} does not exist.");
         }
 

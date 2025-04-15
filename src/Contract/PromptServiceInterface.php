@@ -20,5 +20,5 @@ interface PromptServiceInterface
 
     public function error(string $message): void;
 
-    
+
 }
