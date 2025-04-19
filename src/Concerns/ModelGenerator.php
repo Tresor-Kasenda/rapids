@@ -19,7 +19,8 @@ final readonly class ModelGenerator implements ModelGeneratorInterface
         private FileSystemInterface          $fileSystem,
         private RelationshipServiceInterface $relationshipService,
         private ServiceInterface             $promptService
-    ) {
+    )
+    {
     }
 
     public function generateModel(ModelDefinition $modelDefinition): void
@@ -57,7 +58,7 @@ final readonly class ModelGenerator implements ModelGeneratorInterface
 
         // Generate protection array string
         $protectionStr = match ($protectionType) {
-            'fillable' => "\n    protected \$fillable = ['".implode("', '", $fieldNames)."'];",
+            'fillable' => "\n    protected \$fillable = ['" . implode("', '", $fieldNames) . "'];",
             'guarded' => "\n    protected \$guarded = [];" // Empty guarded means all fields are mass assignable
         };
 
@@ -66,7 +67,7 @@ final readonly class ModelGenerator implements ModelGeneratorInterface
 
         if ($modelDefinition->setUseSoftDeletes(true)) {
             $useStatements .= "\nuse Illuminate\\Database\\Eloquent\\SoftDeletes;";
-            $traits = "\n    use SoftDeletes;";
+            $traits = "\nuse SoftDeletes;";
         }
 
         foreach ($fields as $field => $options) {
@@ -140,7 +141,7 @@ final readonly class ModelGenerator implements ModelGeneratorInterface
     {
         $modelPath = app_path("Models/{$relatedModelName}.php");
 
-        if ( ! $this->fileSystem->exists($modelPath)) {
+        if (!$this->fileSystem->exists($modelPath)) {
             $this->promptService->info("Related model file not found: {$modelPath}");
             return;
         }

@@ -2,9 +2,9 @@
 
 ## Overview
 
-RapidsModels is a powerful Laravel package that streamlines model creation by generating a complete model ecosystem with
-a single command. Instead of creating models, migrations, factories, and seeders separately, RapidsModels handles
-everything through an interactive process.
+RapidsModels is a Laravel package that simplifies model creation by generating a complete model ecosystem with one
+command.
+Create models, migrations, factories, and seeders through a simple interactive process.
 
 ## Installation
 
@@ -17,6 +17,11 @@ composer require rapids/rapids
 ```bash
 php artisan rapids:model Product
 ```
+
+The interactive assistant will guide you through:
+. Adding fields with types
+. Managing foreign keys and relationships
+. Customizing options
 
 ## Traditional vs. RapidsModels Approach
 
@@ -313,110 +318,52 @@ public function posts()
 // Pivot migration also created automatically
 ```
 
-### 5. Has Many Through Relationship
-
-```
-Table Relationships:
-┌────────────┬──────────────┬────────────┬────────────┐
-│ From Table │ Relation Type│ To Table   │ Via Method │
-├────────────┼──────────────┼────────────┼────────────┤
-│ Country    │ hasManyThrough│ Post      │ posts      │
-└────────────┴──────────────┴────────────┴─────────��──┘
-```
-
-**How to create:**
-
-```bash
-# Create all models first, then:
-> Add relationship? Yes
-> Enter related model name: Post
-> Select relationship type: hasManyThrough
-> Enter intermediate model: User
-```
-
-Generated code:
-
-```php
-// In Country.php
-public function posts()
-{
-    return $this->hasManyThrough(Post::class, User::class);
-}
-```
-
-### 6. Polymorphic Relationships
-
-```
-Table Relationships:
-┌────────────┬──────────────┬────────────┬────────────┐
-│ From Table │ Relation Type│ To Table   │ Via Method │
-├────────────┼──────────────┼────────────┼────────────┤
-│ Comment    │ morphTo      │ Commentable│ commentable│
-│ Post       │ morphMany    │ Comment    │ comments   │
-└────────────┴──────────────┴────────────┴────────────┘
-```
-
-**How to create:**
-
-```bash
-php artisan rapids:model Comment
-
-# When prompted:
-> Enter field name: commentable_id
-> Enter field name: commentable_type
-> Select relationship type: morphTo
-> Enter polymorphic name: commentable
-```
-
-Generated code:
-
-```php
-// In Comment.php
-public function commentable()
-{
-    return $this->morphTo();
-}
-
-// In Post.php (create separately)
-public function comments()
-{
-    return $this->morphMany(Comment::class, 'commentable');
-}
-```
-
 ## Working with Existing Models
+
+RapidsModels can be seamlessly integrated into existing Laravel projects.
+When working with existing models, the package provides several features to enhance and extend your application's model
+ecosystem.
 
 ### Adding Fields to Existing Models
 
+When you run rapids:model on an existing model name:
+
 ```bash
 php artisan rapids:model Product
-
-# If Product exists:
-> Model Product already exists.
-> What would you like to do?
-  > Add new migration for existing model
 ```
 
-Adding a new field:
+The system will detect the existing model and provide options:
+
+1. **Add new migration for existing model** : Create a migration to add fields to an existing table
+2. **Update existing model file** : Add relationships or methods to the model class
+2. **Generate additional components** : Create missing factory or seeder files
+
+### Creating Migrations for Existing Tables
 
 ```bash
-# Selected "Add new migration for existing model"
-> Enter field name: discount
-> Enter field type: float
+php artisan rapids:model Product
+> Model Product already exists.
+> What would you like to do? Add new migration for existing model
+> Enter field name: sale_price
+> Enter field type: decimal
 > Field is nullable? Yes
 ```
 
-This will generate a new migration to add the field to the existing table.
+This creates a migration that adds the new field to your existing table, preserving all current data.
 
-### Adding Relationships to Existing Models
+### Adding Relationships Between Existing Models
 
 ```bash
-# Selected "Add new migration for existing model"
-> Enter field name: supplier_id
-> Enter related model name for supplier_id: Supplier
-> Select relationship type: belongsTo
-> Select inverse relationship type: hasMany
+php artisan rapids:model Order
+> Model Order already exists.
+> What would you like to do? Update existing model file
+> Add relationship? Yes
+> Enter related model name: Product
+> Select relationship type: belongsToMany
 ```
+
+This will update both model files with the appropriate relationship methods and generate a migration for any required
+pivot tables.
 
 This will:
 
@@ -424,188 +371,72 @@ This will:
 2. Add the relationship method to your Product model
 3. Add the inverse relationship method to your Supplier model
 
-## Complete Workflow Examples
+## Contributing to RapidsModels
 
-### Blog System Example
+### How to Contribute
 
-```
-Full Blog System Workflow:
-┌────────────────────┬─────────────────────────────────────────────────────┐
-│ Step               │ Process                                             │
-├────────────────────┼─────────────────────────────────────────────────────┤
-│ 1. Create User     │ php artisan rapids:model User                       │
-│                    │ - Add name (string)                                 │
-│                    │ - Add email (string)                                │
-│                    │ - Add password (string)                             │
-├────────────────────┼─────��───────────────────────────────────────────────┤
-│ 2. Create Category │ php artisan rapids:model Category                   │
-│                    │ - Add name (string)                                 │
-│                    │ - Add slug (string)                                 │
-│                    │ - Add description (text)                            │
-├────────────────────┼─────────────────────────────────────────────────────┤
-│ 3. Create Post     │ php artisan rapids:model Post                       │
-│                    │ - Add title (string)                                │
-│                    │ - Add content (text)                                │
-│                    │ - Add status (enum: draft,published,archived)       │
-│                    │ - Add user_id (foreign key)                         │
-│                    │   - belongsTo User / hasMany Posts                  │
-│                    │ - Add category_id (foreign key)                     │
-│                    │   - belongsTo Category / hasMany Posts              │
-├────────────────────┼─────────────────────────────────────────────────────┤
-│ 4. Create Tag      │ php artisan rapids:model Tag                        │
-│                    │ - Add name (string)                                 │
-│                    │ - Add relationship to Post (belongsToMany)          │
-├────────────────────┼─────────────────────────────────────────────────────┤
-│ 5. Create Comment  │ php artisan rapids:model Comment                    │
-│                    │ - Add content (text)                                │
-│                    │ - Add user_id (foreign key)                         │
-│                    │   - belongsTo User / hasMany Comments               │
-│                    │ - Add commentable_id & commentable_type             │
-│                    │   - morphTo commentable                             │
-└────────────────────┴──────────────────────────────────────────────────��──┘
+We welcome contributions from the community! Here's how you can help:
+
+```markdown
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit your changes: `git commit -m 'Add some amazing feature'`
+4. Push to the branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
 ```
 
-### Resulting Relationships
-
-```
-Table Relationships:
-┌────────────┬──────────────┬────────────┬────────────┐
-│ From Table │ Relation Type│ To Table   │ Via Method │
-├────────────┼──────────────┼────────────┼────────────┤
-│ Post       │ belongsTo    │ User       │ user       │
-│ User       │ hasMany      │ Post       │ posts      │
-│ Post       │ belongsTo    │ Category   │ category   │
-│ Category   │ hasMany      │ Post       │ posts      │
-│ Post       │ belongsToMany│ Tag        │ tags       │
-│ Tag        │ belongsToMany│ Post       │ posts      │
-│ Comment    │ belongsTo    │ User       │ user       │
-│ User       │ hasMany      │ Comment    │ comments   │
-│ Comment    │ morphTo      │ Commentable│ commentable│
-│ Post       │ morphMany    │ Comment    │ comments   │
-└────────────┴──────────────┴────────────┴────────────┘
-```
-
-## Advanced Features
-
-### Foreign Key Constraints
-
-When adding foreign key fields, you can specify the constraint type:
+### Development Setup
 
 ```bash
-> Enter field name: user_id
-> Enter related table name for user_id: users
-> Select constraint type for user_id:
-  > cascade
-  > restrict
-  > nullify
+# Clone the repository
+git clone https://github.com/your-username/rapids-models.git
+
+# Install dependencies
+composer install
+
+# Run tests
+./vendor/bin/phpunit
 ```
 
-This generates different foreign key constraints:
+## Support the Developer
 
-- `cascade`: `->foreignId('user_id')->constrained('users')->cascadeOnDelete();`
-- `restrict`: `->foreignId('user_id')->constrained('users')->restrictOnDelete();`
-- `nullify`: `->foreignId('user_id')->constrained('users')->nullOnDelete();`
+If you find RapidsModels useful in your projects, consider supporting the development:
 
-### Field Modifiers
+- **Star the repository** on GitHub
+- **Share your experience** on social media using #RapidsModels
+- **Donate** via [GitHub Sponsors](https://github.com/sponsors/Tresor-Kasenda)
+- **Hire me** for your Laravel projects
 
-You can add modifiers to your fields:
+## Vision and Roadmap
 
-```bash
-> Field is nullable? Yes
-> Field is unique? Yes
-```
+RapidsModels aims to streamline Laravel application development by eliminating repetitive boilerplate creation. Our
+vision includes:
 
-Generates: `$table->string('email')->nullable()->unique();`
+### Short-term Goals
 
-## Common Operations Examples
+- Support for more complex field types
+- Enhanced relationship management
+- Custom template support for generated files
 
-### Creating a New Model with Basic Fields
+### Long-term Goals
 
-```bash
-php artisan rapids:model Product
-> Enter field name: name
-> Enter field type: string
-> Field is nullable? No
-> Enter field name: description
-> Enter field type: text
-> Field is nullable? Yes
-> Enter field name: price
-> Enter field type: decimal
-> Field is nullable? No
-> Add another field? No
-```
+- Visual model builder interface
+- Integration with popular Laravel packages
+- Database reverse engineering capabilities
 
-### Creating a Model with Relationships
+## Community and Support
 
-```bash
-php artisan rapids:model Order
-> Enter field name: number
-> Enter field type: string
-> Field is nullable? No
-> Enter field name: status
-> Enter field type: enum
-> Enter values (comma separated): pending,processing,completed,cancelled
-> Field is nullable? No
-> Enter field name: user_id
-> Enter related model name for user_id: User
-> Select relationship type: belongsTo
-> Select inverse relationship type: hasMany
-```
+- **Documentation**: [https://github.com/Tresor-Kasenda/rapids/README.md](https://github.com/Tresor-Kasenda/rapids)
+- **Issues**: [GitHub Issues](https://github.com/Tresor-Kasenda/rapids/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Tresor-Kasenda/rapids/discussions)
+- **Twitter**: [@TresorKasenda](https://x.com/TresorKasenda)
 
-### Adding Fields to an Existing Model
+## License
 
-```bash
-php artisan rapids:model Product
-> Model Product already exists.
-> What would you like to do? Add new migration for existing model
-> Enter field name: is_featured
-> Enter field type: boolean
-> Field is nullable? No
-```
+RapidsModels is open-sourced software licensed under the [MIT license](LICENSE.md).
 
-## Benefits of RapidsModels
+---
 
-```
-Key Benefits:
-┌─────────────────────┬───────────────────────────────────────────────────┐
-│ Benefit             │ Description                                       │
-├─────────────────────┼───────────────────────────────────────────────────┤
-│ Time Savings        │ Reduces model setup time by 70-80%                │
-│ Consistency         │ Ensures standard model structure and relationships │
-│ Reduced Errors      │ Prevents common mistakes in relationships         │
-│ Better Documentation│ Self-documented relationships and field types     │
-│ Easier Maintenance  │ Standardized approach to model creation           │
-│ Automatic Testing   │ Generated factories for testing all models        │
-└─────────────────────┴───────────────────────────────────────────────────┘
-```
-
-## Troubleshooting
-
-### Common Issues and Solutions
-
-```
-Common Issues:
-┌─────────────────────────────┬───────────────────────────────────────────┐
-│ Issue                       │ Solution                                  │
-├─────────────────────────────┼───────────────────────────────────────────┤
-│ Migration already exists    │ Use a unique name or timestamp            │
-│ Model already exists        │ Choose "Add new migration" option         │
-│ Missing related models      │ Create required models first              │
-│ Invalid field types         │ Check supported types in documentation    │
-│ Relationship errors         │ Ensure inverse relationships are correct  │
-└─────────────────────────────┴───────────────────────────────────────────┘
-```
-
-## Best Practices
-
-1. **Create models in dependency order**: Create parent models before child models
-2. **Use consistent naming**: Follow Laravel conventions for table and column names
-3. **Add relationships as needed**: Don't overcomplicate your initial model
-4. **Use meaningful field names**: Be descriptive about the data the field holds
-5. **Document special relationships**: Add comments for complex relationships
-
-## Conclusion
-
-RapidsModels transforms Laravel model creation from a multi-step process into a streamlined, interactive experience. By
-automating the creation of models, migrations, factories, and seeders with proper relationships, it significantly
-accelerates development while ensuring consistency across your application.
+Made with ❤️ by [Tresor Kasenda](https://github.com/Tresor-Kasenda)
