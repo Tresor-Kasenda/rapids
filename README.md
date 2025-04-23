@@ -1,74 +1,117 @@
-# RapidsModels Documentation
+# RapidsModels
 
-## Overview
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/rapids/rapids.svg?style=flat-square)](https://packagist.org/packages/rapids/rapids)
+[![Total Downloads](https://img.shields.io/packagist/dt/rapids/rapids.svg?style=flat-square)](https://packagist.org/packages/rapids/rapids)
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/Tresor-Kasenda?style=social)](https://x.com/TresorKasenda)
+[![GitHub Issues](https://img.shields.io/github/issues/Tresor-Kasenda/rapids-models.svg?style=flat-square)](https://packagist.org/packages/rapids/rapids)
 
-RapidsModels is a Laravel package that simplifies model creation by generating a complete model ecosystem with one
-command.
-Create models, migrations, factories, and seeders through a simple interactive process.
+> **Supercharge your Laravel development workflow by generating complete model ecosystems with a single command**
+
+## 📚 Table of Contents
+
+- [Introduction](#introduction)
+- [Installation](#installation)
+- [Core Features](#core-features)
+- [Basic Usage](#basic-usage)
+- [Field Types](#field-types)
+- [Relationship Management](#relationship-management)
+    - [Belongs To Relationship](#1-belongs-to-relationship)
+    - [Has One Relationship](#2-has-one-relationship)
+    - [Has Many Relationship](#3-has-many-relationship)
+    - [Belongs To Many Relationship](#4-belongs-to-many-relationship)
+- [Working with Existing Models](#working-with-existing-models)
+- [Contributing](#contributing)
+- [Support](#support)
+- [License](#license)
+
+## Introduction
+
+RapidsModels is a Laravel package designed to streamline your development workflow by automating the creation of the
+entire model ecosystem. Instead of manually creating models, migrations, factories, and seeders separately, RapidsModels
+handles everything with a single command and an intuitive interactive process.
+
+**Why Use RapidsModels?**
+
+- **Time Efficiency**: Create complete model ecosystems in seconds
+- **Consistency**: Maintain standardized code across your project
+- **Interactive Process**: Guided setup with clear prompts
+- **Complete Solution**: Generates models, migrations, factories, seeders, and relationships
+- **Flexible**: Works with new projects or existing codebases
 
 ## Installation
+
+Installing RapidsModels is straightforward with Composer:
 
 ```bash
 composer require rapids/rapids
 ```
 
+Laravel will automatically discover the package - no additional configuration required.
+
+## Core Features
+
+- **One-Command Generation**: Create models, migrations, factories, and seeders with a single command
+- **Interactive Setup**: Guided creation process for fields and relationships
+- **Comprehensive Field Support**: Supports all Laravel field types with appropriate options
+- **Automated Relationships**: Configures both sides of model relationships
+- **Pivot Table Support**: Handles many-to-many relationships with customizable pivot tables
+- **Existing Model Integration**: Works with existing models to add fields or relationships
+- **Migration Generation**: Creates migrations for new models or updates to existing ones
+
 ## Basic Usage
+
+Generate a complete model ecosystem with a single command:
 
 ```bash
 php artisan rapids:model Product
 ```
 
-The interactive assistant will guide you through:
-. Adding fields with types
-. Managing foreign keys and relationships
-. Customizing options
+The interactive process will guide you through:
 
-## Traditional vs. RapidsModels Approach
+1. Adding fields with their types and options
+2. Setting up foreign keys and relationships
+3. Configuring timestamps, soft deletes, and other options
+4. Creating factories and seeders
 
-```
-Traditional Approach:
-┌──────────────────────────┬─────────────────────────────────────────────────┐
-│ Step                     │ Command                                         │
-├──────────────────────────┼─────────────────────────────────────────────────┤
-│ 1. Create model          │ php artisan make:model Product                  │
-│ 2. Create migration      │ php artisan make:migration create_products_table│
-│ 3. Create factory        │ php artisan make:factory ProductFactory         │
-│ 4. Create seeder         │ php artisan make:seeder ProductSeeder           │
-│ 5. Define fields manually│ Edit migration file                             │
-│ 6. Set up relationships  │ Edit model files                                │
-└──────────────────────────┴─────────────────────────────────────────────────┘
+### Traditional Approach vs RapidsModels
 
-RapidsModels Approach:
-┌──────────────────────────┬──────────────────────────────────────────────┐
-│ Step                     │ Command                                      │
-├──────────────────────────┼──────────────────────────────────────────────┤
-│ Complete model ecosystem │ php artisan rapids:model Product             │
-│ with interactive setup   │ (follow prompts for fields and relationships)│
-└──────────────────────────┴──────────────────────────────────────────────┘
-```
-
-## Field Types Reference
+**Traditional Approach:**
 
 ```
-Field Type Options:
-┌────────────┬──────────────────────────┬───────────────────────────┐
-│ Type       │ Description              │ Example Usage             │
-├────────────┼──────────────────────────┼───────────────────────────┤
-│ string     │ Text data                │ name, title, description  │
-│ text       │ Longer text data         │ content, bio, details     │
-│ integer    │ Whole numbers            │ count, position, age      │
-│ decimal    │ Numbers with decimals    │ price, weight, rating     │
-│ boolean    │ True/false values        │ is_active, has_discount   │
-│ date       │ Date without time        │ birth_date, release_date  │
-│ datetime   │ Date with time           │ starts_at, expires_at     │
-│ enum       │ Predefined options       │ status, role, type        │
-│ json       │ JSON data                │ settings, preferences     │
-└────────────┴──────────────────────────┴───────────────────────────┘
+- Create model:        php artisan make:model Product
+- Create migration:    php artisan make:migration create_products_table
+- Create factory:      php artisan make:factory ProductFactory
+- Create seeder:       php artisan make:seeder ProductSeeder
+- Define fields:       Manually edit migration file
+- Configure relations: Manually edit model files
 ```
 
-## Working with Field Types
+**RapidsModels Approach:**
 
-### String Fields
+```
+- Everything at once:  php artisan rapids:model Product
+                       (follow the interactive prompts)
+```
+
+## Field Types
+
+RapidsModels supports all standard Laravel field types:
+
+| Type     | Description           | Example Use Cases               |
+|----------|-----------------------|---------------------------------|
+| string   | Text data             | name, title, slug               |
+| text     | Longer text           | content, description, biography |
+| integer  | Whole numbers         | count, position, age            |
+| decimal  | Numbers with decimals | price, weight, rating           |
+| boolean  | True/false values     | is_active, has_discount         |
+| date     | Date without time     | birth_date, release_date        |
+| datetime | Date with time        | starts_at, expires_at           |
+| enum     | Predefined options    | status, role, type              |
+| json     | JSON data             | settings, preferences, metadata |
+
+### Field Configuration Examples
+
+**String Field:**
 
 ```bash
 > Enter field name: title
@@ -76,115 +119,50 @@ Field Type Options:
 > Field is nullable? No
 ```
 
-Creates: `$table->string('title');`
+Generates: `$table->string('title');`
 
-### Text Fields
-
-```bash
-> Enter field name: description
-> Enter field type: text
-> Field is nullable? No
-```
-
-Creates: `$table->text('description');`
-
-### Integer Fields
-
-```bash
-> Enter field name: quantity
-> Enter field type: integer
-> Field is nullable? No
-```
-
-Creates: `$table->integer('quantity');`
-
-### Decimal Fields
+**Decimal Field:**
 
 ```bash
 > Enter field name: price
 > Enter field type: decimal
+> Precision (total digits)? 8
+> Scale (decimal places)? 2
 > Field is nullable? No
 ```
 
-Creates: `$table->decimal('price');`
+Generates: `$table->decimal('price', 8, 2);`
 
-### Boolean Fields
-
-```bash
-> Enter field name: is_featured
-> Enter field type: boolean
-> Field is nullable? No
-```
-
-Creates: `$table->boolean('is_featured');`
-
-### Date Fields
-
-```bash
-> Enter field name: publication_date
-> Enter field type: date
-> Field is nullable? Yes
-```
-
-Creates: `$table->date('publication_date')->nullable();`
-
-### DateTime Fields
-
-```bash
-> Enter field name: expires_at
-> Enter field type: datetime
-> Field is nullable? Yes
-```
-
-Creates: `$table->datetime('expires_at')->nullable();`
-
-### Enum Fields
+**Enum Field:**
 
 ```bash
 > Enter field name: status
 > Enter field type: enum
 > Enter values (comma separated): draft,published,archived
+> Default value? draft
 > Field is nullable? No
 ```
 
-Creates: `$table->enum('status', ['draft', 'published', 'archived'])->default('draft');`
+Generates: `$table->enum('status', ['draft', 'published', 'archived'])->default('draft');`
 
-### JSON Fields
+## Relationship Management
 
-```bash
-> Enter field name: settings
-> Enter field type: json
-> Field is nullable? Yes
-```
-
-Creates: `$table->json('settings')->nullable();`
-
-## Relationship Examples
+RapidsModels simplifies creating and managing relationships between models.
 
 ### 1. Belongs To Relationship
 
-```
-Table Relationships:
-┌────────────┬──────────────┬────────────┬────────────┐
-│ From Table │ Relation Type│ To Table   │ Via Method │
-├────────────┼──────────────┼────────────┼────────────┤
-│ Product    │ belongsTo    │ Category   │ category   │
-└────────────┴──────────────┴────────────┴────────────┘
-```
-
-**How to create:**
+**Example: Product belongs to Category**
 
 ```bash
-php artisan rapids:model Product
-
-# When prompted:
 > Enter field name: category_id
-> Enter related model name for category_id: Category
+> Enter field type: integer
+> Is this a foreign key? Yes
+> Enter related model name: Category
 > Select relationship type: belongsTo
 > Select inverse relationship type: hasMany
 ```
 
-Generated code:
+**Generated Code:**
 
 ```php
 // In Product.php
@@ -202,28 +180,18 @@ public function products()
 
 ### 2. Has One Relationship
 
-```
-Table Relationships:
-┌────────────┬──────────────┬────────────┬────────────┐
-│ From Table │ Relation Type│ To Table   │ Via Method │
-├────────────┼──────────────┼────────────┼────────────┤
-│ User       │ hasOne       │ Profile    │ profile    │
-└────────────┴──────────────┴────────────┴────────────┘
-```
-
-**How to create:**
+**Example: User has one Profile**
 
 ```bash
-php artisan rapids:model Profile
-
-# When prompted:
 > Enter field name: user_id
-> Enter related model name for user_id: User
+> Enter field type: integer
+> Is this a foreign key? Yes
+> Enter related model name: User
 > Select relationship type: belongsTo
 > Select inverse relationship type: hasOne
 ```
 
-Generated code:
+**Generated Code:**
 
 ```php
 // In Profile.php
@@ -241,28 +209,18 @@ public function profile()
 
 ### 3. Has Many Relationship
 
-```
-Table Relationships:
-┌────────────┬──────────────┬────────────┬────────────┐
-│ From Table │ Relation Type│ To Table   │ Via Method │
-├────────────┼──────────────┼────────────┼────────────┤
-│ Author     │ hasMany      │ Book       │ books      │
-└────────────┴──────────────┴────────────┴────────────┘
-```
-
-**How to create:**
+**Example: Author has many Books**
 
 ```bash
-php artisan rapids:model Book
-
-# When prompted:
 > Enter field name: author_id
-> Enter related model name for author_id: Author
+> Enter field type: integer
+> Is this a foreign key? Yes
+> Enter related model name: Author
 > Select relationship type: belongsTo
 > Select inverse relationship type: hasMany
 ```
 
-Generated code:
+**Generated Code:**
 
 ```php
 // In Book.php
@@ -280,27 +238,17 @@ public function books()
 
 ### 4. Belongs To Many Relationship
 
-```
-Table Relationships:
-┌────────────┬──────────────┬────────────┬────────────┐
-│ From Table │ Relation Type│ To Table   │ Via Method │
-├────────────┼──────────────┼────────────┼────────────┤
-│ Post       │ belongsToMany│ Tag        │ tags       │
-└────────────┴──────────────┴────────────┴────────────┘
-```
-
-**How to create:**
+**Example: Post has many Tags (and vice versa)**
 
 ```bash
-php artisan rapids:model Post
-
-# Add regular fields, then:
 > Add relationship? Yes
 > Enter related model name: Tag
 > Select relationship type: belongsToMany
+> Customize pivot table name? No
+> Add timestamps to pivot? Yes
 ```
 
-Generated code:
+**Generated Code:**
 
 ```php
 // In Post.php
@@ -314,56 +262,37 @@ public function posts()
 {
     return $this->belongsToMany(Post::class);
 }
-
-// Pivot migration also created automatically
 ```
 
 ## Working with Existing Models
 
-RapidsModels can be seamlessly integrated into existing Laravel projects.
-When working with existing models, the package provides several features to enhance and extend your application's model
-ecosystem.
+RapidsModels integrates seamlessly with existing Laravel projects:
 
 ### Adding Fields to Existing Models
 
-When you run rapids:model on an existing model name:
+When running `rapids:model` on an existing model name:
 
 ```bash
 php artisan rapids:model Product
 ```
 
-The system will detect the existing model and provide options:
+The system will detect the existing model and offer options:
 
-1. **Add new migration for existing model** : Create a migration to add fields to an existing table
-2. **Update existing model file** : Add relationships or methods to the model class
-2. **Generate additional components** : Create missing factory or seeder files
+1. **Add a new migration for the existing model**: Create a migration to add fields to an existing table
+2. **Update the existing model file**: Add relationships or methods to the model class
+3. **Generate additional components**: Create missing factory or seeder files
 
-### Creating Migrations for Existing Tables
+### Example: Adding a Relationship to an Existing Model
 
 ```bash
 php artisan rapids:model Product
 > Model Product already exists.
-> What would you like to do? Add new migration for existing model
-> Enter field name: sale_price
-> Enter field type: decimal
-> Field is nullable? Yes
-```
-
-This creates a migration that adds the new field to your existing table, preserving all current data.
-
-### Adding Relationships Between Existing Models
-
-```bash
-php artisan rapids:model Order
-> Model Order already exists.
 > What would you like to do? Update existing model file
 > Add relationship? Yes
-> Enter related model name: Product
-> Select relationship type: belongsToMany
+> Enter related model name: Supplier
+> Select relationship type: belongsTo
+> Create migration for foreign key? Yes
 ```
-
-This will update both model files with the appropriate relationship methods and generate a migration for any required
-pivot tables.
 
 This will:
 
@@ -371,27 +300,21 @@ This will:
 2. Add the relationship method to your Product model
 3. Add the inverse relationship method to your Supplier model
 
-## Contributing to RapidsModels
-
-### How to Contribute
-
-We welcome contributions from the community! Here's how you can help:
-
-```markdown
 ## Contributing
+
+Contributions are welcome! Here's how you can help:
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/amazing-feature`
 3. Commit your changes: `git commit -m 'Add some amazing feature'`
 4. Push to the branch: `git push origin feature/amazing-feature`
 5. Open a Pull Request
-```
 
 ### Development Setup
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/rapids-models.git
+git clone https://github.com/Tresor-Kasenda/rapids-models.git
 
 # Install dependencies
 composer install
@@ -400,42 +323,18 @@ composer install
 ./vendor/bin/phpunit
 ```
 
-## Support the Developer
+## Support
 
-If you find RapidsModels useful in your projects, consider supporting the development:
+If you find RapidsModels useful in your projects, consider supporting development:
 
 - **Star the repository** on GitHub
 - **Share your experience** on social media using #RapidsModels
 - **Donate** via [GitHub Sponsors](https://github.com/sponsors/Tresor-Kasenda)
 - **Hire me** for your Laravel projects
 
-## Vision and Roadmap
-
-RapidsModels aims to streamline Laravel application development by eliminating repetitive boilerplate creation. Our
-vision includes:
-
-### Short-term Goals
-
-- Support for more complex field types
-- Enhanced relationship management
-- Custom template support for generated files
-
-### Long-term Goals
-
-- Visual model builder interface
-- Integration with popular Laravel packages
-- Database reverse engineering capabilities
-
-## Community and Support
-
-- **Documentation**: [https://github.com/Tresor-Kasenda/rapids/README.md](https://github.com/Tresor-Kasenda/rapids)
-- **Issues**: [GitHub Issues](https://github.com/Tresor-Kasenda/rapids/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Tresor-Kasenda/rapids/discussions)
-- **Twitter**: [@TresorKasenda](https://x.com/TresorKasenda)
-
 ## License
 
-RapidsModels is open-sourced software licensed under the [MIT license](LICENSE.md).
+RapidsModels is open-source software licensed under the [MIT license](LICENSE.md).
 
 ---
 
