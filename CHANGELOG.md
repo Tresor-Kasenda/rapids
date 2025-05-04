@@ -5,6 +5,16 @@ Toutes les modifications notables apportées au projet Rapids seront documentée
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-05-04
+
+### Ajouté
+- Support de compatibilité avec Laravel 12
+- Tests de compatibilité pour assurer le fonctionnement avec Laravel 10, 11, et 12
+
+### Modifié
+- Mise à jour des dépendances pour inclure Laravel 12 explicitement
+- Mise à jour de orchestra/testbench pour support Laravel 12
+
 ## [2.0.0] - 2025-05-04
 
 ### Ajouté
