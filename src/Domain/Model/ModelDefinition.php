@@ -4,14 +4,21 @@ declare(strict_types=1);
 
 namespace Rapids\Rapids\Domain\Model;
 
-final class ModelDefinition
+readonly class ModelDefinition
 {
+    /**
+     * @param string $name Nom du modèle
+     * @param array $fields Champs du modèle
+     * @param array $relations Relations du modèle
+     * @param bool $useFillable Utilisation de fillable ou guarded
+     * @param bool $useSoftDelete Utilisation de SoftDeletes
+     */
     public function __construct(
-        private readonly string $name,
-        private array           $fields = [],
-        private array           $relations = [],
-        private bool            $useFillable = true,
-        private bool            $useSoftDelete = false,
+        private string $name,
+        private array $fields = [],
+        private array $relations = [],
+        private bool $useFillable = true,
+        private bool $useSoftDelete = false,
     ) {
     }
 
@@ -25,10 +32,19 @@ final class ModelDefinition
         return $this->fields;
     }
 
-    public function addField(string $name, array $options): self
+    /**
+     * @param array $fields
+     * @return self
+     */
+    public function withFields(array $fields): self
     {
-        $this->fields[$name] = $options;
-        return $this;
+        return new self(
+            $this->name,
+            $fields,
+            $this->relations,
+            $this->useFillable,
+            $this->useSoftDelete
+        );
     }
 
     public function getRelations(): array
@@ -36,10 +52,19 @@ final class ModelDefinition
         return $this->relations;
     }
 
-    public function addRelation(array $relation): self
+    /**
+     * @param array $relations
+     * @return self
+     */
+    public function withRelations(array $relations): self
     {
-        $this->relations[] = $relation;
-        return $this;
+        return new self(
+            $this->name,
+            $this->fields,
+            $relations,
+            $this->useFillable,
+            $this->useSoftDelete
+        );
     }
 
     public function useFillable(): bool
@@ -47,14 +72,38 @@ final class ModelDefinition
         return $this->useFillable;
     }
 
+    /**
+     * @param bool $useFillable
+     * @return self
+     */
+    public function withUseFillable(bool $useFillable): self
+    {
+        return new self(
+            $this->name,
+            $this->fields,
+            $this->relations,
+            $useFillable,
+            $this->useSoftDelete
+        );
+    }
+
     public function useSoftDeletes(): bool
     {
         return $this->useSoftDelete;
     }
 
-    public function setUseSoftDeletes(bool $useSoftDelete): self
+    /**
+     * @param bool $useSoftDelete
+     * @return self
+     */
+    public function withUseSoftDeletes(bool $useSoftDelete): self
     {
-        $this->useSoftDelete = $useSoftDelete;
-        return $this;
+        return new self(
+            $this->name,
+            $this->fields,
+            $this->relations,
+            $this->useFillable,
+            $useSoftDelete
+        );
     }
 }

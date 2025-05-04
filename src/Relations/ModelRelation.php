@@ -13,6 +13,23 @@ use function Laravel\Prompts\text;
 
 final class ModelRelation
 {
+    /**
+     * Liste complète des types de relations disponibles dans Laravel
+     */
+    private const RELATION_TYPES = [
+        'hasOne' => 'Has One',
+        'belongsTo' => 'Belongs To',
+        'belongsToMany' => 'Belongs To Many',
+        'hasMany' => 'Has Many',
+        'hasOneThrough' => 'Has One Through',
+        'hasManyThrough' => 'Has Many Through',
+        'morphOne' => 'Morph One',
+        'morphMany' => 'Morph Many',
+        'morphTo' => 'Morph To',
+        'morphToMany' => 'Morph To Many',
+        'morphedByMany' => 'Morphed By Many',
+    ];
+
     public function __construct(
         public array $relationFields
     ) {
@@ -37,58 +54,34 @@ final class ModelRelation
                 // Get relationship type for current model
                 $currentModelRelation = search(
                     label: "Select relationship type for current model to {$relatedModelName}",
-                    options: fn () => [
-                        'hasOne' => 'Has One',
-                        'belongsTo' => 'Belongs To',
-                        'belongsToMany' => 'Belongs To Many',
-                        'hasMany' => 'Has Many',
-                        'hasOneThrough' => 'Has One Through',
-                        'hasManyThrough' => 'Has Many Through',
-                        'morphOne' => 'Morph One',
-                        'morphMany' => 'Morph Many',
-                        'morphTo' => 'Morph To',
-                        'morphToMany' => 'Morph To Many',
-                        'morphedByMany' => 'Morphed By Many',
-                        'none' => 'No inverse relation'
-                    ],
+                    options: fn () => self::RELATION_TYPES + ['none' => 'No relation'],
                     placeholder: 'Select relationship type'
                 );
 
-                // Get inverse relationship
-                $inverseRelation = search(
-                    label: "Select inverse relationship type from {$relatedModelName}",
-                    options: fn () => [
-                        'hasOne' => 'Has One',
-                        'belongsTo' => 'Belongs To',
-                        'belongsToMany' => 'Belongs To Many',
-                        'hasMany' => 'Has Many',
-                        'hasOneThrough' => 'Has One Through',
-                        'hasManyThrough' => 'Has Many Through',
-                        'morphOne' => 'Morph One',
-                        'morphMany' => 'Morph Many',
-                        'morphTo' => 'Morph To',
-                        'morphToMany' => 'Morph To Many',
-                        'morphedByMany' => 'Morphed By Many',
-                        'none' => 'No inverse relation'
-                    ],
-                    placeholder: 'Select inverse relationship type'
-                );
+                if ('none' !== $currentModelRelation) {
+                    // Get inverse relationship
+                    $inverseRelation = search(
+                        label: "Select inverse relationship type from {$relatedModelName}",
+                        options: fn () => self::RELATION_TYPES + ['none' => 'No inverse relation'],
+                        placeholder: 'Select inverse relationship type'
+                    );
 
-                // Add primary relation
-                $relations[] = [
-                    'type' => $currentModelRelation,
-                    'model' => $relatedModelName,
-                    'field' => $field
-                ];
-
-                // Add inverse relation if selected
-                if ('none' !== $inverseRelation) {
+                    // Add primary relation
                     $relations[] = [
-                        'type' => $inverseRelation,
+                        'type' => $currentModelRelation,
                         'model' => $relatedModelName,
-                        'inverse' => true,
                         'field' => $field
                     ];
+
+                    // Add inverse relation if selected
+                    if ('none' !== $inverseRelation) {
+                        $relations[] = [
+                            'type' => $inverseRelation,
+                            'model' => $relatedModelName,
+                            'inverse' => true,
+                            'field' => $field
+                        ];
+                    }
                 }
             }
         }
@@ -107,7 +100,7 @@ final class ModelRelation
     {
         while (true) {
             // Display current relations
-            if ( ! empty($relations)) {
+            if (!empty($relations)) {
                 info("Current relationships:");
                 $tableData = [];
                 foreach ($relations as $index => $relation) {
@@ -136,7 +129,7 @@ final class ModelRelation
 
             if ('done' === $action) {
                 break;
-            } elseif ('delete' === $action && ! empty($relations)) {
+            } elseif ('delete' === $action && !empty($relations)) {
                 $indexToDelete = select(
                     label: 'Select relationship to delete',
                     options: array_map(fn ($i) => (string)$i, array_keys($relations))
@@ -145,7 +138,7 @@ final class ModelRelation
                 $relations = array_values($relations); // Re-index array
                 info("Relationship has been deleted.");
                 continue;
-            } elseif ('edit' === $action && ! empty($relations)) {
+            } elseif ('edit' === $action && !empty($relations)) {
                 $indexToEdit = select(
                     label: 'Select relationship to edit',
                     options: array_map(fn ($i) => (string)$i, array_keys($relations))
@@ -153,19 +146,7 @@ final class ModelRelation
 
                 $relationType = search(
                     label: 'Select new relationship type',
-                    options: fn () => [
-                        'hasOne' => 'Has One',
-                        'belongsTo' => 'Belongs To',
-                        'belongsToMany' => 'Belongs To Many',
-                        'hasMany' => 'Has Many',
-                        'hasOneThrough' => 'Has One Through',
-                        'hasManyThrough' => 'Has Many Through',
-                        'morphOne' => 'Morph One',
-                        'morphMany' => 'Morph Many',
-                        'morphTo' => 'Morph To',
-                        'morphToMany' => 'Morph To Many',
-                        'morphedByMany' => 'Morphed By Many',
-                    ] ?? $relations[$indexToEdit]['type'],
+                    options: fn () => self::RELATION_TYPES,
                     placeholder: "Select new relationship type",
                     scroll: 10
                 );
@@ -185,19 +166,7 @@ final class ModelRelation
             } elseif ('add' === $action) {
                 $relationType = search(
                     label: 'Select relationship type',
-                    options: fn () => [
-                        'hasOne' => 'Has One',
-                        'belongsTo' => 'Belongs To',
-                        'belongsToMany' => 'Belongs To Many',
-                        'hasMany' => 'Has Many',
-                        'hasOneThrough' => 'Has One Through',
-                        'hasManyThrough' => 'Has Many Through',
-                        'morphOne' => 'Morph One',
-                        'morphMany' => 'Morph Many',
-                        'morphTo' => 'Morph To',
-                        'morphToMany' => 'Morph To Many',
-                        'morphedByMany' => 'Morphed By Many',
-                    ],
+                    options: fn () => self::RELATION_TYPES,
                     placeholder: 'Select relationship type'
                 );
 
@@ -216,19 +185,7 @@ final class ModelRelation
                 if (confirm(label: "Would you like to add an inverse relationship from {$relatedModel}?", default: true)) {
                     $inverseRelation = search(
                         label: "Select inverse relationship type from {$relatedModel}",
-                        options: fn () => [
-                            'hasOne' => 'Has One',
-                            'belongsTo' => 'Belongs To',
-                            'belongsToMany' => 'Belongs To Many',
-                            'hasMany' => 'Has Many',
-                            'hasOneThrough' => 'Has One Through',
-                            'hasManyThrough' => 'Has Many Through',
-                            'morphOne' => 'Morph One',
-                            'morphMany' => 'Morph Many',
-                            'morphTo' => 'Morph To',
-                            'morphToMany' => 'Morph To Many',
-                            'morphedByMany' => 'Morphed By Many',
-                        ],
+                        options: fn () => self::RELATION_TYPES,
                         placeholder: 'Select inverse relationship type'
                     );
 

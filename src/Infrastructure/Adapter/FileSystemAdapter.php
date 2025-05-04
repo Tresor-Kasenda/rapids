@@ -8,7 +8,7 @@ use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Filesystem\Filesystem;
 use Rapids\Rapids\Application\Port\FileSystemPort;
 
-final class FileSystemAdapter implements FileSystemPort
+final readonly class FileSystemAdapter implements FileSystemPort
 {
     public function __construct(
         private Filesystem $filesystem
@@ -18,7 +18,7 @@ final class FileSystemAdapter implements FileSystemPort
     /**
      * @throws FileNotFoundException
      */
-    public function get($path): string
+    public function get(string $path): string
     {
         return $this->filesystem->get($path);
     }

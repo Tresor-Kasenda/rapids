@@ -6,13 +6,17 @@ namespace Rapids\Rapids;
 
 use Illuminate\Support\ServiceProvider;
 use Rapids\Rapids\Application\Port\FileSystemPort;
-use Rapids\Rapids\Console\AntiPatternDetectorCommand;
-use Rapids\Rapids\Console\AuditModelsCommand;
-use Rapids\Rapids\Console\RapidCrud;
-use Rapids\Rapids\Console\RapidsInstallation;
 use Rapids\Rapids\Console\RapidsModels;
+use Rapids\Rapids\Contract\FileSystemInterface;
+use Rapids\Rapids\Contract\ModelInspectorInterface;
+use Rapids\Rapids\Contract\PromptServiceInterface;
+use Rapids\Rapids\Contract\RelationshipServiceInterface;
 use Rapids\Rapids\Infrastructure\Adapter\FileSystemAdapter;
 use Rapids\Rapids\Infrastructure\Adapter\LaravelFileSystemAdapter;
+use Rapids\Rapids\Infrastructure\Laravel\LaravelFileSystem;
+use Rapids\Rapids\Infrastructure\Laravel\LaravelModelInspector;
+use Rapids\Rapids\Infrastructure\Laravel\LaravelPromptService;
+use Rapids\Rapids\Infrastructure\Laravel\LaravelRelationshipService;
 
 final class RapidsServiceProvider extends ServiceProvider
 {
@@ -20,16 +24,12 @@ final class RapidsServiceProvider extends ServiceProvider
     {
         $this->publishes([
             __DIR__.'/../config/rapids.php' => config_path('rapids.php'),
-            __DIR__.'/stubs' => base_path('stubs/vendor/rapids'),
+            __DIR__.'/../stubs' => base_path('stubs/vendor/rapids'),
         ], 'rapids');
 
         if ($this->app->runningInConsole()) {
             $this->commands([
-                RapidsInstallation::class,
                 RapidsModels::class,
-                RapidCrud::class,
-                AuditModelsCommand::class,
-                AntiPatternDetectorCommand::class
             ]);
         }
     }
@@ -41,11 +41,11 @@ final class RapidsServiceProvider extends ServiceProvider
             'rapids'
         );
 
-        $this->app->bind(
-            FileSystemPort::class,
-            FileSystemAdapter::class
-        );
-
+        // Bind interfaces to implementations
         $this->app->bind(FileSystemPort::class, LaravelFileSystemAdapter::class);
+        $this->app->bind(FileSystemInterface::class, LaravelFileSystem::class);
+        $this->app->bind(ModelInspectorInterface::class, LaravelModelInspector::class);
+        $this->app->bind(PromptServiceInterface::class, LaravelPromptService::class);
+        $this->app->bind(RelationshipServiceInterface::class, LaravelRelationshipService::class);
     }
 }

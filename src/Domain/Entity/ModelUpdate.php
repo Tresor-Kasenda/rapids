@@ -6,14 +6,16 @@ namespace Rapids\Rapids\Domain\Entity;
 
 use Illuminate\Support\Str;
 
-final class ModelUpdate
+readonly class ModelUpdate
 {
     /** @var ModelField[] */
-    private array $fields = [];
+    private array $fields;
 
     public function __construct(
-        private readonly string $modelName
+        private string $modelName,
+        array $fields = []
     ) {
+        $this->fields = $fields;
     }
 
     public function getModelName(): string
@@ -21,10 +23,11 @@ final class ModelUpdate
         return $this->modelName;
     }
 
-    public function addField(ModelField $field): self
+    public function withAddedField(ModelField $field): self
     {
-        $this->fields[$field->getName()] = $field;
-        return $this;
+        $newFields = $this->fields;
+        $newFields[$field->getName()] = $field;
+        return new self($this->modelName, $newFields);
     }
 
     public function getFields(): array

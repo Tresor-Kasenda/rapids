@@ -6,6 +6,7 @@ namespace Rapids\Rapids\Concerns;
 
 use Exception;
 use Illuminate\Support\Str;
+use Rapids\Rapids\Constants\LaravelConstants;
 use Rapids\Rapids\Contract\FileSystemInterface;
 use Rapids\Rapids\Contract\ModelGeneratorInterface;
 use Rapids\Rapids\Contract\RelationshipServiceInterface;
@@ -16,11 +17,10 @@ use RuntimeException;
 final readonly class ModelGenerator implements ModelGeneratorInterface
 {
     public function __construct(
-        private FileSystemInterface          $fileSystem,
+        private FileSystemInterface $fileSystem,
         private RelationshipServiceInterface $relationshipService,
-        private ServiceInterface             $promptService
-    )
-    {
+        private ServiceInterface $promptService
+    ) {
     }
 
     public function generateModel(ModelDefinition $modelDefinition): void
@@ -53,7 +53,6 @@ final readonly class ModelGenerator implements ModelGeneratorInterface
             ]
         );
 
-
         $fieldNames = array_keys($fields);
 
         // Generate protection array string
@@ -64,10 +63,11 @@ final readonly class ModelGenerator implements ModelGeneratorInterface
 
         $useStatements = 'use Illuminate\\Database\\Eloquent\\Model;';
         $traits = '';
+        $casts = []; // Initialize casts array
 
-        if ($modelDefinition->setUseSoftDeletes(true)) {
+        if ($modelDefinition->useSoftDeletes()) {
             $useStatements .= "\nuse Illuminate\\Database\\Eloquent\\SoftDeletes;";
-            $traits = "\nuse SoftDeletes;";
+            $traits = "\n    use SoftDeletes;"; // Indent trait usage
         }
 
         foreach ($fields as $field => $options) {
@@ -77,16 +77,48 @@ final readonly class ModelGenerator implements ModelGeneratorInterface
                     'type' => 'belongsTo',
                     'model' => $relatedModel
                 ];
+            } elseif ($options['type'] === 'enum') {
+                // Add Enum cast
+                $enumName = Str::studly($modelName) . Str::studly($field) . 'Enum';
+                $enumNamespace = 'App\\Enums';
+                // Add use statement only if not already added (e.g., multiple enums)
+                $useStatementToAdd = "\nuse {$enumNamespace}\\{$enumName};";
+                if (!str_contains($useStatements, $useStatementToAdd)) {
+                    $useStatements .= $useStatementToAdd;
+                }
+                $casts[] = "'{$field}' => {$enumName}::class";
+            }
+            // Add other casts if needed, e.g., for date/datetime, json, boolean
+            elseif (in_array($options['type'], ['date', 'datetime', 'timestamp'])) {
+                $castType = ($options['type'] === 'date') ? 'date' : 'datetime';
+                $casts[] = "'{$field}' => '{$castType}'";
+            } elseif ($options['type'] === 'json') {
+                $casts[] = "'{$field}' => 'array'"; // Ou 'object' selon le besoin
+            } elseif ($options['type'] === 'boolean') {
+                $casts[] = "'{$field}' => 'boolean'";
+            } elseif ($options['type'] === 'uuid') {
+                $useStatements .= "\nuse Illuminate\\Database\\Eloquent\\Concerns\\HasUuids;";
+                $traits .= $traits ? "\n    use HasUuids;" : "\n    use HasUuids;";
             }
         }
 
         $relations = array_merge($relations, $modelDefinition->getRelations());
-        $modelStub = $this->fileSystem->get($this->getStubPath());
+        $modelStubPath = $this->getStubPath();
+        if (!$this->fileSystem->exists($modelStubPath)) {
+            throw new RuntimeException("Model stub not found at: {$modelStubPath}");
+        }
+        $modelStub = $this->fileSystem->get($modelStubPath);
         $relationMethods = $this->relationshipService->generateRelationMethods($modelName, $relations);
 
+        // Generate casts string
+        $castsStr = '';
+        if (!empty($casts)) {
+            $castsStr = "\n\n    protected \$casts = [\n        " . implode(",\n        ", $casts) . "\n    ];";
+        }
+
         return str_replace(
-            ['{{ namespace }}', '{{ use }}', '{{ class }}', '{{ traits }}', '{{ protection }}', '{{ relations }}'],
-            ['App\\Models', $useStatements, $modelName, $traits, $protectionStr, $relationMethods],
+            ['{{ namespace }}', '{{ use }}', '{{ class }}', '{{ traits }}', '{{ protection }}', '{{ casts }}', '{{ relations }}'],
+            ['App\\Models', $useStatements, $modelName, $traits, $protectionStr, $castsStr, $relationMethods],
             $modelStub
         );
     }

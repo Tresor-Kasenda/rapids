@@ -7,7 +7,7 @@ namespace Rapids\Rapids\Infrastructure\Laravel;
 use Illuminate\Support\Facades\File;
 use Rapids\Rapids\Contract\FileSystemInterface;
 
-final class LaravelFileSystem implements FileSystemInterface
+final readonly class LaravelFileSystem implements FileSystemInterface
 {
     public function get(string $path): string
     {

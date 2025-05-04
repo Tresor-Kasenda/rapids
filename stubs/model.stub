@@ -13,6 +13,7 @@ class {{ class }} extends Model
     {{ traits }}
 
     {{ protection }}
+    {{ casts }}
 
     {{ relations }}
 }

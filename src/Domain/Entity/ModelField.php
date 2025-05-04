@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Rapids\Rapids\Domain\Entity;
 
-final readonly class ModelField
+readonly class ModelField
 {
     public function __construct(
         private string $name,
         private string $type,
-        private bool   $isRelation
+        private bool $isRelation
     ) {
     }
 

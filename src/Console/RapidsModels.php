@@ -26,7 +26,7 @@ use function Laravel\Prompts\text;
 
 final class RapidsModels extends Command
 {
-    protected $signature = 'rapids:model {name?}';
+    protected $signature = 'rapids:model {name?} {--fields=}';
 
     protected $description = '
         Create a new model with fields, relations, migration, factory, and seeder in one go.
@@ -85,9 +85,15 @@ final class RapidsModels extends Command
 
         $this->modelName = ucfirst($modelName);
 
-        $this->handleModelCreation();
+        // Check if fields flag is provided
+        $fieldsJson = $this->option('fields');
+        if (!empty($fieldsJson)) {
+            $this->handleModelCreationFromJson($fieldsJson);
+        } else {
+            $this->handleModelCreation();
+        }
+        
         info('Running migrations...');
-        $this->call('migrate');
         $this->generateFactory();
         new SeederGenerator($this->modelName)->generateSeeder();
         info('Model created successfully.');
@@ -242,17 +248,132 @@ final class RapidsModels extends Command
             label: 'Would you like to add soft delete functionality?',
             default: false
         );
+        
+        // Ajouter un log pour vérifier la valeur
+        info("SoftDelete choisi par l'utilisateur: " . ($useSoftDeletes ? 'Oui' : 'Non'));
 
         $modelDefinition = new ModelDefinition(
             $this->modelName,
             $generatedFields,
             $this->relationFields,
-            $useSoftDeletes
+            true, // useFillable, valeur par défaut
+            $useSoftDeletes // Nous passons le choix de SoftDelete
         );
+        
+        // Vérifier que la valeur est correctement enregistrée dans l'objet
+        info("SoftDelete stocké dans ModelDefinition: " . ($modelDefinition->useSoftDeletes() ? 'Oui' : 'Non'));
 
         $modelGeneration->generateModel($modelDefinition);
 
         new MigrationGenerator($this->modelName)->generateMigration($generatedFields, $useSoftDeletes);
+    }
+
+    /**
+     * Handle model creation from JSON input
+     * 
+     * @param string $fieldsJson JSON string containing field definitions
+     * @return void
+     */
+    protected function handleModelCreationFromJson(string $fieldsJson): void
+    {
+        try {
+            $fieldsData = json_decode($fieldsJson, true, 512, JSON_THROW_ON_ERROR);
+            if (!is_array($fieldsData)) {
+                throw new \Exception("Invalid JSON format for fields");
+            }
+            
+            // Process fields
+            $processedFields = [];
+            $this->relationFields = [];
+            
+            foreach ($fieldsData as $fieldName => $fieldConfig) {
+                // If field is a relation
+                if (isset($fieldConfig['relation'])) {
+                    $relationType = $fieldConfig['relation']['type'] ?? 'belongsTo';
+                    $relatedModel = $fieldConfig['relation']['model'] ?? null;
+                    $inverseRelation = $fieldConfig['relation']['inverse'] ?? 'none';
+                    
+                    if ($relatedModel) {
+                        // Add relation to the model
+                        $this->relationFields[$fieldName] = [
+                            'type' => $relationType,
+                            'model' => $relatedModel,
+                        ];
+                        
+                        // If field is a foreign key, add it to fields
+                        if ($relationType === 'belongsTo') {
+                            $processedFields[Str::snake($fieldName) . '_id'] = [
+                                'type' => 'foreignId',
+                                'nullable' => $fieldConfig['nullable'] ?? false,
+                            ];
+                        }
+                        
+                        // Add inverse relation if specified
+                        if ($inverseRelation !== 'none') {
+                            $this->addRelationToModel(
+                                $relatedModel,
+                                $this->modelName,
+                                $inverseRelation
+                            );
+                        }
+                    }
+                } else {
+                    // Regular field
+                    $processedFields[$fieldName] = [
+                        'type' => $fieldConfig['type'] ?? 'string',
+                        'nullable' => $fieldConfig['nullable'] ?? false,
+                    ];
+                    
+                    // Add additional properties if provided
+                    if (isset($fieldConfig['default'])) {
+                        $processedFields[$fieldName]['default'] = $fieldConfig['default'];
+                    }
+                    
+                    if (isset($fieldConfig['length'])) {
+                        $processedFields[$fieldName]['length'] = $fieldConfig['length'];
+                    }
+                    
+                    if (isset($fieldConfig['values']) && $fieldConfig['type'] === 'enum') {
+                        $processedFields[$fieldName]['values'] = $fieldConfig['values'];
+                    }
+                }
+            }
+            
+            $this->selectedFields = $processedFields;
+            
+            // Determine if soft deletes should be used
+            $useSoftDeletes = $fieldsData['_config']['softDeletes'] ?? false;
+            
+            // Create the model and migration
+            $fileSystem = new LaravelFileSystem();
+            $relationshipService = new LaravelRelationshipService();
+            $promptService = new PromptService();
+            
+            $modelGeneration = new ModelGenerator(
+                $fileSystem,
+                $relationshipService,
+                $promptService
+            );
+            
+            $modelDefinition = new ModelDefinition(
+                $this->modelName,
+                $processedFields,
+                $this->relationFields,
+                true, // useFillable, default value
+                $useSoftDeletes
+            );
+            
+            $modelGeneration->generateModel($modelDefinition);
+            
+            // Generate the migration
+            new MigrationGenerator($this->modelName)->generateMigration($processedFields, $useSoftDeletes);
+            
+            info("Model {$this->modelName} created successfully from JSON input");
+            
+        } catch (\Exception $e) {
+            $this->error("Error processing JSON input: " . $e->getMessage());
+            $this->handleModelCreation(); // Fall back to interactive mode
+        }
     }
 
     /**

@@ -1,6 +1,12 @@
 {
     "name": "rapids/rapids",
-    "description": "Rapid is a Laravel command can helps to generate crud, models, migration and ui with Livewire and Filament",
+    "description": "Package Laravel de génération de modèles et relations",
+    "keywords": [
+        "laravel",
+        "models",
+        "relations",
+        "generator"
+    ],
     "type": "library",
     "license": "MIT",
     "autoload": {
@@ -10,17 +16,22 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Rapids\\Rapids\\Tests\\": "tests/"
+            "Tests\\": "tests/"
         }
     },
     "require": {
-        "php": "^8.3",
-        "illuminate/support": "^10.0|^11.0|^12.0",
-        "laravel/prompts": "^0.3.5"
+        "php": "^8.2|^8.3|^8.4",
+        "illuminate/console": "^10.0|^11.0",
+        "illuminate/support": "^10.0|^11.0",
+        "laravel/prompts": "^0.1.13"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^8.0|^9.0",
+        "phpunit/phpunit": "^10.0|^11.0"
     },
     "authors": [
         {
-            "name": "Tresor kasenda",
+            "name": "Tresor Kasenda",
             "email": "tresorkasendat@gmail.com"
         }
     ],
@@ -31,7 +42,7 @@
             ]
         }
     },
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "prefer-stable": true,
     "config": {
         "sort-packages": true,

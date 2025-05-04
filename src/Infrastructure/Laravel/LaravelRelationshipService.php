@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rapids\Rapids\Infrastructure\Laravel;
 
 use Illuminate\Support\Str;
+use Rapids\Rapids\Constants\LaravelConstants;
 use Rapids\Rapids\Contract\RelationshipServiceInterface;
 
 final readonly class LaravelRelationshipService implements RelationshipServiceInterface
@@ -41,9 +42,17 @@ final readonly class LaravelRelationshipService implements RelationshipServiceIn
 
     public function generateRelationMethod(string $modelName, string $relationType, string $methodName, string $relatedModel): string
     {
-        return "public function {$methodName}()
-    {
-        return \$this->{$relationType}(\\App\\Models\\{$relatedModel}::class);
-    }";
+        // Si le type de relation n'est pas dans la liste des relations connues, retourner un commentaire
+        if (!in_array($relationType, LaravelConstants::RELATION_TYPES)) {
+            return "// Unknown relation type: {$relationType}";
+        }
+
+        $returnTypeHint = "\\Illuminate\\Database\\Eloquent\\Relations\\" . ucfirst($relationType);
+        $code = "public function {$methodName}(): {$returnTypeHint}\n" .
+                "    {\n" .
+                "        return \$this->{$relationType}(\\App\\Models\\{$relatedModel}::class);\n" .
+                "    }";
+
+        return $code;
     }
 }

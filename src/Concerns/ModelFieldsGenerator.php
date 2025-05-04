@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Rapids\Rapids\Concerns;
 
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use Rapids\Rapids\Contract\ModelInspectorInterface;
 use Rapids\Rapids\Contract\PromptServiceInterface;
 use Rapids\Rapids\Infrastructure\Laravel\LaravelModelInspector;
@@ -113,10 +115,42 @@ final class ModelFieldsGenerator
             array_keys($this->fields)
         );
 
-        $this->fields[$fieldToEdit] = $this->collectFieldOptions($fieldToEdit, [
-            'type' => $this->fields[$fieldToEdit]['type'],
-            'nullable' => $this->fields[$fieldToEdit]['nullable']
-        ]);
+        // Store original type and values to check if they changed
+        $originalOptions = $this->fields[$fieldToEdit] ?? [];
+        $originalType = $originalOptions['type'] ?? null;
+        $originalValues = $originalOptions['values'] ?? [];
+
+        // Collect new options, which might trigger enum generation if type changes to enum
+        $newOptions = $this->collectFieldOptions($fieldToEdit, $originalOptions);
+        $this->fields[$fieldToEdit] = $newOptions;
+
+        $enumName = Str::studly($this->modelName) . Str::studly($fieldToEdit) . 'Enum';
+        $enumPath = app_path("Enums/{$enumName}.php");
+
+        // Case 1: Type changed FROM enum TO something else
+        if ($originalType === 'enum' && $newOptions['type'] !== 'enum') {
+            if (File::exists($enumPath)) {
+                // Optionally ask the user if they want to delete the old enum file
+                if ($this->promptService->confirm("Field '{$fieldToEdit}' is no longer an enum. Delete the existing Enum file '{$enumName}.php'?", false)) {
+                    File::delete($enumPath);
+                    $this->promptService->info("Deleted Enum file: {$enumPath}");
+                }
+            }
+        }
+        // Case 2: Type remained enum, but values changed
+        elseif ($originalType === 'enum' && $newOptions['type'] === 'enum' && $originalValues !== $newOptions['values']) {
+             $this->promptService->info("Enum values changed for '{$fieldToEdit}'. Regenerating Enum file...");
+             // Force regeneration by deleting the old one first if it exists
+             if (File::exists($enumPath)) {
+                 File::delete($enumPath);
+             }
+             // generateEnumFile is called within collectFieldOptions, but we call it again explicitly
+             // after deleting to ensure it's recreated with new values.
+             // This assumes collectFieldOptions doesn't skip generation if file exists.
+             // Let's refine generateEnumFile to handle overwriting if needed during edits.
+             $this->generateEnumFile($fieldToEdit, $newOptions['values']); // Regenerate
+        }
+        // Case 3: Type changed TO enum (handled inside collectFieldOptions -> generateEnumFile)
 
         $this->promptService->info("Field '{$fieldToEdit}' has been updated.");
     }
@@ -162,6 +196,9 @@ final class ModelFieldsGenerator
                 $defaultValues
             );
             $options['values'] = array_map('trim', explode(',', $values));
+
+            // Generate Enum file
+            $this->generateEnumFile($fieldName, $options['values']);
         }
 
         return $options;
@@ -190,5 +227,55 @@ final class ModelFieldsGenerator
 
         $this->fields[$fieldName] = $this->collectFieldOptions($fieldName);
         $this->usedFieldNames[] = $fieldName;
+    }
+
+    private function generateEnumFile(string $fieldName, array $values): void
+    {
+        $enumName = Str::studly($this->modelName) . Str::studly($fieldName) . 'Enum';
+        $enumPath = app_path("Enums/{$enumName}.php");
+        $enumNamespace = 'App\\Enums';
+
+        if (File::exists($enumPath)) {
+            // Don't overwrite if editing and values haven't changed, handled in editField
+            // If adding a new field and it exists, maybe prompt? For now, just inform.
+            $this->promptService->info("Enum file already exists: {$enumPath}");
+            return;
+        }
+
+        // Ensure the Enums directory exists
+        if (!File::isDirectory(app_path('Enums'))) {
+            File::makeDirectory(app_path('Enums'), 0755, true);
+        }
+
+        $stubPath = config('rapids.stubs.migration.enum');
+        if (!$stubPath || !File::exists($stubPath)) {
+             $this->promptService->error("Enum stub file not found at path defined in config: {$stubPath}");
+             return;
+        }
+        $stub = File::get($stubPath);
+
+
+        $cases = '';
+        foreach ($values as $value) {
+            // Sanitize value to be a valid case name (e.g., 'draft' -> Draft, 'is_active' -> IsActive)
+            $caseName = Str::studly($value);
+            // Ensure case name starts with a letter or underscore
+             if (!preg_match('/^[a-zA-Z_]/', $caseName)) {
+                $caseName = '_' . $caseName; // Prepend underscore if it starts with a number
+            }
+            // Ensure case name is valid PHP identifier (basic check)
+            $caseName = preg_replace('/[^a-zA-Z0-9_\x7f-\xff]/', '', $caseName);
+
+            $cases .= "    case {$caseName} = '{$value}';\n";
+        }
+
+        $content = str_replace(
+            ['{{ namespace }}', '{{ class }}', '{{ cases }}'],
+            [$enumNamespace, $enumName, rtrim($cases)], // rtrim to remove trailing newline
+            $stub
+        );
+
+        File::put($enumPath, $content);
+        $this->promptService->info("Created Enum: {$enumPath}");
     }
 }

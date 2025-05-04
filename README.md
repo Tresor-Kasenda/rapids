@@ -19,7 +19,11 @@
     - [Has One Relationship](#2-has-one-relationship)
     - [Has Many Relationship](#3-has-many-relationship)
     - [Belongs To Many Relationship](#4-belongs-to-many-relationship)
+    - [Has One Through Relationship](#5-has-one-through-relationship)
+    - [Has Many Through Relationship](#6-has-many-through-relationship)
+    - [Polymorphic Relationships](#7-polymorphic-relationships)
 - [Working with Existing Models](#working-with-existing-models)
+- [PHP Compatibility](#php-compatibility)
 - [Contributing](#contributing)
 - [Support](#support)
 - [License](#license)
@@ -36,6 +40,8 @@ handles everything with a single command and an intuitive interactive process.
 - **Consistency**: Maintain standardized code across your project
 - **Interactive Process**: Guided setup with clear prompts
 - **Complete Solution**: Generates models, migrations, factories, seeders, and relationships
+- **Full Laravel Relations Support**: Supports ALL Laravel relationship types (hasOne, belongsTo, hasMany, belongsToMany, hasOneThrough, hasManyThrough, morphOne, morphMany, morphTo, morphToMany, morphedByMany)
+- **Modern PHP Support**: Compatible with PHP 8.2, 8.3, and 8.4
 - **Flexible**: Works with new projects or existing codebases
 
 ## Installation
@@ -54,9 +60,11 @@ Laravel will automatically discover the package - no additional configuration re
 - **Interactive Setup**: Guided creation process for fields and relationships
 - **Comprehensive Field Support**: Supports all Laravel field types with appropriate options
 - **Automated Relationships**: Configures both sides of model relationships
+- **Complete Relations Support**: All Laravel relationships including through and polymorphic relations
 - **Pivot Table Support**: Handles many-to-many relationships with customizable pivot tables
 - **Existing Model Integration**: Works with existing models to add fields or relationships
 - **Migration Generation**: Creates migrations for new models or updates to existing ones
+- **Modern PHP Support**: Takes advantage of PHP 8.2+ features like readonly classes
 
 ## Basic Usage
 
@@ -72,6 +80,25 @@ The interactive process will guide you through:
 2. Setting up foreign keys and relationships
 3. Configuring timestamps, soft deletes, and other options
 4. Creating factories and seeders
+
+### Using Fields JSON Flag
+
+You can also create a model with a single command by providing field definitions as a JSON string:
+
+```bash
+php artisan rapids:model User --fields='{"name":{"type":"string"},"email":{"type":"string"},"password":{"type":"string"},"_config":{"softDeletes":true}}'
+```
+
+The JSON structure supports:
+- Field definitions with type, nullable, default, length properties
+- Relationship definitions with type, model, and inverse properties
+- Configuration options like softDeletes
+
+Example with relationships:
+
+```bash
+php artisan rapids:model Post --fields='{"title":{"type":"string"},"content":{"type":"text"},"category":{"relation":{"type":"belongsTo","model":"Category","inverse":"hasMany"}},"_config":{"softDeletes":true}}'
+```
 
 ### Traditional Approach vs RapidsModels
 
@@ -108,42 +135,7 @@ RapidsModels supports all standard Laravel field types:
 | datetime | Date with time        | starts_at, expires_at           |
 | enum     | Predefined options    | status, role, type              |
 | json     | JSON data             | settings, preferences, metadata |
-
-### Field Configuration Examples
-
-**String Field:**
-
-```bash
-> Enter field name: title
-> Enter field type: string
-> Field is nullable? No
-```
-
-Generates: `$table->string('title');`
-
-**Decimal Field:**
-
-```bash
-> Enter field name: price
-> Enter field type: decimal
-> Precision (total digits)? 8
-> Scale (decimal places)? 2
-> Field is nullable? No
-```
-
-Generates: `$table->decimal('price', 8, 2);`
-
-**Enum Field:**
-
-```bash
-> Enter field name: status
-> Enter field type: enum
-> Enter values (comma separated): draft,published,archived
-> Default value? draft
-> Field is nullable? No
-```
-
-Generates: `$table->enum('status', ['draft', 'published', 'archived'])->default('draft');`
+| uuid     | UUID identifiers      | uuid field with HasUuids trait  |
 
 ## Relationship Management
 
@@ -166,13 +158,13 @@ RapidsModels simplifies creating and managing relationships between models.
 
 ```php
 // In Product.php
-public function category()
+public function category(): \Illuminate\Database\Eloquent\Relations\BelongsTo
 {
     return $this->belongsTo(Category::class);
 }
 
 // In Category.php
-public function products()
+public function products(): \Illuminate\Database\Eloquent\Relations\HasMany
 {
     return $this->hasMany(Product::class);
 }
@@ -195,13 +187,13 @@ public function products()
 
 ```php
 // In Profile.php
-public function user()
+public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
 {
     return $this->belongsTo(User::class);
 }
 
 // In User.php
-public function profile()
+public function profile(): \Illuminate\Database\Eloquent\Relations\HasOne
 {
     return $this->hasOne(Profile::class);
 }
@@ -224,13 +216,13 @@ public function profile()
 
 ```php
 // In Book.php
-public function author()
+public function author(): \Illuminate\Database\Eloquent\Relations\BelongsTo
 {
     return $this->belongsTo(Author::class);
 }
 
 // In Author.php
-public function books()
+public function books(): \Illuminate\Database\Eloquent\Relations\HasMany
 {
     return $this->hasMany(Book::class);
 }
@@ -252,15 +244,110 @@ public function books()
 
 ```php
 // In Post.php
-public function tags()
+public function tags(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
 {
-    return $this->belongsToMany(Tag::class);
+    return $this->belongsToMany(Tag::class)
+        ->withTimestamps();
 }
 
 // In Tag.php
-public function posts()
+public function posts(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
 {
-    return $this->belongsToMany(Post::class);
+    return $this->belongsToMany(Post::class)
+        ->withTimestamps();
+}
+```
+
+### 5. Has One Through Relationship
+
+**Example: Supplier has one Account through User**
+
+```bash
+> Add relationship? Yes
+> Select relationship type: hasOneThrough
+> Enter related model name: Account
+> Enter intermediate model name: User
+> Enter foreign key on intermediate model: supplier_id
+> Enter foreign key on target model: user_id
+```
+
+**Generated Code:**
+
+```php
+// In Supplier.php
+public function account(): \Illuminate\Database\Eloquent\Relations\HasOneThrough
+{
+    return $this->hasOneThrough(
+        Account::class,
+        User::class,
+        'supplier_id', // Foreign key on User table...
+        'user_id',     // Foreign key on Account table...
+        'id',          // Local key on Supplier table...
+        'id'           // Local key on User table...
+    );
+}
+```
+
+### 6. Has Many Through Relationship
+
+**Example: Country has many Patients through Hospitals**
+
+```bash
+> Add relationship? Yes
+> Select relationship type: hasManyThrough
+> Enter related model name: Patient
+> Enter intermediate model name: Hospital
+> Enter foreign key on intermediate model: country_id
+> Enter foreign key on target model: hospital_id
+```
+
+**Generated Code:**
+
+```php
+// In Country.php
+public function patients(): \Illuminate\Database\Eloquent\Relations\HasManyThrough
+{
+    return $this->hasManyThrough(
+        Patient::class,
+        Hospital::class,
+        'country_id',  // Foreign key on Hospital table...
+        'hospital_id', // Foreign key on Patient table...
+        'id',          // Local key on Country table...
+        'id'           // Local key on Hospital table...
+    );
+}
+```
+
+### 7. Polymorphic Relationships
+
+**Example: Image morphTo multiple models (Post, User)**
+
+```bash
+> Enter field name: imageable_id
+> Enter field name: imageable_type
+> Select relationship type: morphTo
+> Enter polymorphic name: imageable
+```
+
+**Generated Code:**
+
+```php
+// In Image.php
+public function imageable(): \Illuminate\Database\Eloquent\Relations\MorphTo
+{
+    return $this->morphTo();
+}
+
+// In Post.php (when creating the Post model)
+public function image(): \Illuminate\Database\Eloquent\Relations\MorphOne
+{
+    return $this->morphOne(Image::class, 'imageable');
+}
+
+// In User.php (when creating the User model)
+public function image(): \Illuminate\Database\Eloquent\Relations\MorphOne
+{
+    return $this->morphOne(Image::class, 'imageable');
 }
 ```
 
@@ -299,6 +386,22 @@ This will:
 1. Create a migration to add the supplier_id field
 2. Add the relationship method to your Product model
 3. Add the inverse relationship method to your Supplier model
+
+## PHP Compatibility
+
+RapidsModels is compatible with:
+
+- PHP 8.2
+- PHP 8.3
+- PHP 8.4
+
+The package takes advantage of modern PHP features including:
+
+- Readonly classes and properties
+- Constructor property promotion
+- Match expressions
+- Return type declarations
+- Named arguments
 
 ## Contributing
 

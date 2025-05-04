@@ -42,6 +42,20 @@ RapidsModels Approach:
 └──────────────────────────┴──────────────────────────────────────────────┘
 ```
 
+## PHP Compatibility
+
+RapidsModels now fully supports:
+- PHP 8.2
+- PHP 8.3
+- PHP 8.4
+
+And takes advantage of modern PHP features like:
+- Readonly classes and properties
+- Constructor property promotion
+- Match expressions
+- Return type declarations
+- Named arguments
+
 ## Field Types Reference
 
 ```
@@ -58,7 +72,31 @@ Field Type Options:
 │ datetime   │ Date with time           │ starts_at, expires_at     │
 │ enum       │ Predefined options       │ status, role, type        │
 │ json       │ JSON data                │ settings, preferences     │
+│ uuid       │ UUID identifiers         │ adds HasUuids trait       │
 └────────────┴──────────────────────────┴───────────────────────────┘
+```
+
+## Supported Laravel Relations
+
+RapidsModels now supports ALL Laravel relationship types:
+
+```
+Relationship Types:
+┌──────────────┬────────────────────────────────────────────┐
+│ Type         │ Description                                │
+├──────────────┼────────────────────────────────────────────┤
+│ hasOne       │ One-to-one relation                        │
+│ belongsTo    │ Inverse of hasOne or hasMany              │
+│ hasMany      │ One-to-many relation                       │
+│ belongsToMany│ Many-to-many relation                      │
+│ hasOneThrough│ One-to-one relation through another model  │
+│ hasManyThrough│ One-to-many relation through another model│
+│ morphOne     │ One-to-one polymorphic relation           │
+│ morphMany    │ One-to-many polymorphic relation          │
+│ morphTo      │ Inverse of morphOne or morphMany          │
+│ morphToMany  │ Many-to-many polymorphic relation         │
+│ morphedByMany│ Inverse of morphToMany                    │
+└──────────────┴────────────────────────────────────────────┘
 ```
 
 ## Working with Field Types
@@ -154,205 +192,109 @@ Creates: `$table->enum('status', ['draft', 'published', 'archived'])->default('d
 
 Creates: `$table->json('settings')->nullable();`
 
-## Relationship Examples
+### UUID Fields
 
-### 1. Belongs To Relationship
+```bash
+> Enter field name: uuid
+> Enter field type: uuid
+> Field is nullable? No
+```
+
+Creates: `$table->uuid('uuid');` and adds `use Illuminate\Database\Eloquent\Concerns\HasUuids;` to the model.
+
+## Relationship Examples - New Advanced Features
+
+### 1. Has One Through Relationship
 
 ```
-Table Relationships:
 ┌────────────┬──────────────┬────────────┬────────────┐
-│ From Table │ Relation Type│ To Table   │ Via Method │
+│ From Table │ Relation Type│ To Table   │ Via Model  │
 ├────────────┼──────────────┼────────────┼────────────┤
-│ Product    │ belongsTo    │ Category   │ category   │
+│ Supplier   │ hasOneThrough│ Account    │ User       │
 └────────────┴──────────────┴────────────┴────────────┘
 ```
 
 **How to create:**
 
 ```bash
-php artisan rapids:model Product
+php artisan rapids:model Supplier
 
 # When prompted:
-> Enter field name: category_id
-> Enter related model name for category_id: Category
-> Select relationship type: belongsTo
-> Select inverse relationship type: hasMany
-```
-
-Generated code:
-
-```php
-// In Product.php
-public function category()
-{
-    return $this->belongsTo(Category::class);
-}
-
-// In Category.php
-public function products()
-{
-    return $this->hasMany(Product::class);
-}
-```
-
-### 2. Has One Relationship
-
-```
-Table Relationships:
-┌────────────┬──────────────┬────────────┬────────────┐
-│ From Table │ Relation Type│ To Table   │ Via Method │
-├────────────┼──────────────┼────────────┼────────────┤
-│ User       │ hasOne       │ Profile    │ profile    │
-└────────────┴──────────────┴────────────┴────────────┘
-```
-
-**How to create:**
-
-```bash
-php artisan rapids:model Profile
-
-# When prompted:
-> Enter field name: user_id
-> Enter related model name for user_id: User
-> Select relationship type: belongsTo
-> Select inverse relationship type: hasOne
-```
-
-Generated code:
-
-```php
-// In Profile.php
-public function user()
-{
-    return $this->belongsTo(User::class);
-}
-
-// In User.php
-public function profile()
-{
-    return $this->hasOne(Profile::class);
-}
-```
-
-### 3. Has Many Relationship
-
-```
-Table Relationships:
-┌────────────┬──────────────┬────────────┬────────────┐
-│ From Table │ Relation Type│ To Table   │ Via Method │
-├────────────┼──────────────┼────────────┼────────────┤
-│ Author     │ hasMany      │ Book       │ books      │
-└────────────┴──────────────┴────────────┴────────────┘
-```
-
-**How to create:**
-
-```bash
-php artisan rapids:model Book
-
-# When prompted:
-> Enter field name: author_id
-> Enter related model name for author_id: Author
-> Select relationship type: belongsTo
-> Select inverse relationship type: hasMany
-```
-
-Generated code:
-
-```php
-// In Book.php
-public function author()
-{
-    return $this->belongsTo(Author::class);
-}
-
-// In Author.php
-public function books()
-{
-    return $this->hasMany(Book::class);
-}
-```
-
-### 4. Belongs To Many Relationship
-
-```
-Table Relationships:
-┌────────────┬──────────────┬────────────┬────────────┐
-│ From Table │ Relation Type│ To Table   │ Via Method │
-├────────────┼──────────────┼────────────┼────────────┤
-│ Post       │ belongsToMany│ Tag        │ tags       │
-└────────────┴──────────────┴────────────┴────────────┘
-```
-
-**How to create:**
-
-```bash
-php artisan rapids:model Post
-
-# Add regular fields, then:
 > Add relationship? Yes
-> Enter related model name: Tag
-> Select relationship type: belongsToMany
+> Select relationship type: hasOneThrough
+> Enter related model name: Account
+> Enter intermediate model name: User
+> Enter foreign key on intermediate model: supplier_id
+> Enter foreign key on target model: user_id
 ```
 
 Generated code:
 
 ```php
-// In Post.php
-public function tags()
+// In Supplier.php
+public function account(): \Illuminate\Database\Eloquent\Relations\HasOneThrough
 {
-    return $this->belongsToMany(Tag::class);
+    return $this->hasOneThrough(
+        Account::class,
+        User::class,
+        'supplier_id', // Foreign key on User table...
+        'user_id',     // Foreign key on Account table...
+        'id',          // Local key on Supplier table...
+        'id'           // Local key on User table...
+    );
 }
-
-// In Tag.php
-public function posts()
-{
-    return $this->belongsToMany(Post::class);
-}
-
-// Pivot migration also created automatically
 ```
 
-### 5. Has Many Through Relationship
+### 2. Has Many Through Relationship (Enhanced)
 
 ```
-Table Relationships:
 ┌────────────┬──────────────┬────────────┬────────────┐
-│ From Table │ Relation Type│ To Table   │ Via Method │
+│ From Table │ Relation Type│ To Table   │ Via Model  │
 ├────────────┼──────────────┼────────────┼────────────┤
-│ Country    │ hasManyThrough│ Post      │ posts      │
-└────────────┴──────────────┴────────────┴─────────��──┘
+│ Country    │ hasManyThrough│ Post      │ User       │
+└────────────┴──────────────┴────────────┴────────────┘
 ```
 
 **How to create:**
 
 ```bash
-# Create all models first, then:
+php artisan rapids:model Country
+
+# When prompted:
 > Add relationship? Yes
-> Enter related model name: Post
 > Select relationship type: hasManyThrough
-> Enter intermediate model: User
+> Enter related model name: Post
+> Enter intermediate model name: User
+> Enter foreign key on intermediate model: country_id
+> Enter foreign key on target model: user_id
 ```
 
 Generated code:
 
 ```php
 // In Country.php
-public function posts()
+public function posts(): \Illuminate\Database\Eloquent\Relations\HasManyThrough
 {
-    return $this->hasManyThrough(Post::class, User::class);
+    return $this->hasManyThrough(
+        Post::class, 
+        User::class,
+        'country_id', // Foreign key on User table...
+        'user_id',    // Foreign key on Post table...
+        'id',         // Local key on Country table...
+        'id'          // Local key on User table...
+    );
 }
 ```
 
-### 6. Polymorphic Relationships
+### 3. Polymorphic Relationships (Enhanced Support)
 
 ```
-Table Relationships:
 ┌────────────┬──────────────┬────────────┬────────────┐
 │ From Table │ Relation Type│ To Table   │ Via Method │
 ├────────────┼──────────────┼────────────┼────────────┤
 │ Comment    │ morphTo      │ Commentable│ commentable│
 │ Post       │ morphMany    │ Comment    │ comments   │
+│ Video      │ morphMany    │ Comment    │ comments   │
 └────────────┴──────────────┴────────────┴────────────┘
 ```
 
@@ -372,15 +314,71 @@ Generated code:
 
 ```php
 // In Comment.php
-public function commentable()
+public function commentable(): \Illuminate\Database\Eloquent\Relations\MorphTo
 {
     return $this->morphTo();
 }
 
-// In Post.php (create separately)
-public function comments()
+// In Post.php (when creating Post model)
+public function comments(): \Illuminate\Database\Eloquent\Relations\MorphMany
 {
     return $this->morphMany(Comment::class, 'commentable');
+}
+
+// In Video.php (when creating Video model)
+public function comments(): \Illuminate\Database\Eloquent\Relations\MorphMany
+{
+    return $this->morphMany(Comment::class, 'commentable');
+}
+```
+
+### 4. Many-to-Many Polymorphic Relationships
+
+```
+┌────────────┬──────────────┬────────────┬────────────┐
+│ From Table │ Relation Type│ To Table   │ Via Method │
+├────────────┼──────────────┼────────────┼────────────┤
+│ Post       │ morphToMany  │ Tag        │ tags       │
+│ Video      │ morphToMany  │ Tag        │ tags       │
+│ Tag        │ morphedByMany│ Post       │ posts      │
+│ Tag        │ morphedByMany│ Video      │ videos     │
+└────────────┴──────────────┴────────────┴────────────┘
+```
+
+**How to create:**
+
+```bash
+php artisan rapids:model Post
+
+# When prompted:
+> Add relationship? Yes
+> Select relationship type: morphToMany
+> Enter related model name: Tag
+> Enter morph name: taggable
+> Add timestamps to pivot table? Yes
+```
+
+Generated code:
+
+```php
+// In Post.php
+public function tags(): \Illuminate\Database\Eloquent\Relations\MorphToMany
+{
+    return $this->morphToMany(Tag::class, 'taggable')
+        ->withTimestamps();
+}
+
+// In Tag.php (when creating or updating Tag model)
+> Add relationship? Yes
+> Select relationship type: morphedByMany
+> Enter related model name: Post
+> Enter morph name: taggable
+> Add timestamps to pivot table? Yes
+
+public function posts(): \Illuminate\Database\Eloquent\Relations\MorphedByMany
+{
+    return $this->morphedByMany(Post::class, 'taggable')
+        ->withTimestamps();
 }
 ```
 
@@ -437,7 +435,7 @@ Full Blog System Workflow:
 │                    │ - Add name (string)                                 │
 │                    │ - Add email (string)                                │
 │                    │ - Add password (string)                             │
-├────────────────────┼─────��───────────────────────────────────────────────┤
+├────────────────────┼─────────────────────────────────────────────────────┤
 │ 2. Create Category │ php artisan rapids:model Category                   │
 │                    │ - Add name (string)                                 │
 │                    │ - Add slug (string)                                 │
@@ -462,7 +460,7 @@ Full Blog System Workflow:
 │                    │   - belongsTo User / hasMany Comments               │
 │                    │ - Add commentable_id & commentable_type             │
 │                    │   - morphTo commentable                             │
-└────────────────────┴──────────────────────────────────────────────────��──┘
+└────────────────────┴─────────────────────────────────────────────────────┘
 ```
 
 ### Resulting Relationships
@@ -487,7 +485,7 @@ Table Relationships:
 
 ## Advanced Features
 
-### Foreign Key Constraints
+### Advanced Foreign Key Constraints
 
 When adding foreign key fields, you can specify the constraint type:
 
@@ -506,61 +504,50 @@ This generates different foreign key constraints:
 - `restrict`: `->foreignId('user_id')->constrained('users')->restrictOnDelete();`
 - `nullify`: `->foreignId('user_id')->constrained('users')->nullOnDelete();`
 
-### Field Modifiers
+### Field Modifiers and Default Values
 
-You can add modifiers to your fields:
+You can add modifiers and default values to your fields:
 
 ```bash
 > Field is nullable? Yes
 > Field is unique? Yes
+> Add default value? Yes
+> Enter default value: user@example.com
 ```
 
-Generates: `$table->string('email')->nullable()->unique();`
+Generates: `$table->string('email')->nullable()->unique()->default('user@example.com');`
 
-## Common Operations Examples
+## PHP 8.2+ Features
 
-### Creating a New Model with Basic Fields
+RapidsModels now takes advantage of modern PHP features including:
 
-```bash
-php artisan rapids:model Product
-> Enter field name: name
-> Enter field type: string
-> Field is nullable? No
-> Enter field name: description
-> Enter field type: text
-> Field is nullable? Yes
-> Enter field name: price
-> Enter field type: decimal
-> Field is nullable? No
-> Add another field? No
-```
-
-### Creating a Model with Relationships
-
-```bash
-php artisan rapids:model Order
-> Enter field name: number
-> Enter field type: string
-> Field is nullable? No
-> Enter field name: status
-> Enter field type: enum
-> Enter values (comma separated): pending,processing,completed,cancelled
-> Field is nullable? No
-> Enter field name: user_id
-> Enter related model name for user_id: User
-> Select relationship type: belongsTo
-> Select inverse relationship type: hasMany
-```
-
-### Adding Fields to an Existing Model
-
-```bash
-php artisan rapids:model Product
-> Model Product already exists.
-> What would you like to do? Add new migration for existing model
-> Enter field name: is_featured
-> Enter field type: boolean
-> Field is nullable? No
+```php
+// Readonly class for data integrity
+readonly class ModelDefinition
+{
+    public function __construct(
+        private string $name,
+        private array $fields = [],
+        private array $relations = [],
+        private bool $useFillable = true,
+        private bool $useSoftDelete = false,
+    ) {
+    }
+    
+    // Immutable methods returning new instances
+    public function withFields(array $fields): self
+    {
+        return new self(
+            $this->name,
+            $fields,
+            $this->relations,
+            $this->useFillable,
+            $this->useSoftDelete
+        );
+    }
+    
+    // Rest of the class...
+}
 ```
 
 ## Benefits of RapidsModels
@@ -576,6 +563,8 @@ Key Benefits:
 │ Better Documentation│ Self-documented relationships and field types     │
 │ Easier Maintenance  │ Standardized approach to model creation           │
 │ Automatic Testing   │ Generated factories for testing all models        │
+│ Full Relation Support│ All Laravel relation types including polymorphic │
+│ Modern PHP Support  │ Takes advantage of PHP 8.2+ features             │
 └─────────────────────┴───────────────────────────────────────────────────┘
 ```
 
@@ -593,6 +582,7 @@ Common Issues:
 │ Missing related models      │ Create required models first              │
 │ Invalid field types         │ Check supported types in documentation    │
 │ Relationship errors         │ Ensure inverse relationships are correct  │
+│ PHP version compatibility   │ Ensure PHP 8.2 or higher is installed    │
 └─────────────────────────────┴───────────────────────────────────────────┘
 ```
 
@@ -603,9 +593,14 @@ Common Issues:
 3. **Add relationships as needed**: Don't overcomplicate your initial model
 4. **Use meaningful field names**: Be descriptive about the data the field holds
 5. **Document special relationships**: Add comments for complex relationships
+6. **Take advantage of PHP 8.2+ features**: Use readonly classes for data integrity
+7. **Use typed properties**: Always specify return types for clarity
 
 ## Conclusion
 
 RapidsModels transforms Laravel model creation from a multi-step process into a streamlined, interactive experience. By
 automating the creation of models, migrations, factories, and seeders with proper relationships, it significantly
 accelerates development while ensuring consistency across your application.
+
+With full support for all Laravel relationships and modern PHP 8.2+ features, RapidsModels provides a comprehensive
+solution for model creation and management in your Laravel projects.

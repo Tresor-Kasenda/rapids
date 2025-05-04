@@ -11,10 +11,11 @@ use function Laravel\Prompts\error;
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\search;
 use function Laravel\Prompts\select;
+use function Laravel\Prompts\success;
 use function Laravel\Prompts\table;
 use function Laravel\Prompts\text;
 
-final class LaravelPromptService implements PromptServiceInterface
+final readonly class LaravelPromptService implements PromptServiceInterface
 {
     public function text(string $label, string $placeholder = '', string $default = ''): string
     {
@@ -49,5 +50,10 @@ final class LaravelPromptService implements PromptServiceInterface
     public function error(string $message): void
     {
         error($message);
+    }
+    
+    public function success(string $message): void
+    {
+        success($message);
     }
 }

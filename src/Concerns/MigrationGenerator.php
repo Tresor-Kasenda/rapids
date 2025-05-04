@@ -173,18 +173,27 @@ final class MigrationGenerator
     private function generateEnumField(string $field, array $options): string
     {
         $values = array_map(fn ($value) => "'{$value}'", $options['values'] ?? []);
-        $fieldDefinition = "\$table->enum('{$field}', [".implode(', ', $values)."])";
-
-        if ( ! empty($options['values'])) {
-            $defaultValue = $options['values'][0];
-            $fieldDefinition .= "->default('{$defaultValue}')";
+        if (empty($values)) {
+            // Avoid creating an enum column with no values, maybe default to string or throw error?
+            // For now, let's default to string if no values provided.
+             return "\$table->string('{$field}')" . (($options['nullable'] ?? false) ? '->nullable()' : '') . '; // Enum values missing';
         }
+
+        $fieldDefinition = "\$table->enum('{$field}', [" . implode(', ', $values) . "])";
+
+        // Set default value only if provided values are not empty
+        if (!empty($options['values'])) {
+             // Use the first value as default, consistent with previous logic
+             $defaultValue = $options['values'][0];
+             $fieldDefinition .= "->default('{$defaultValue}')";
+        }
+
 
         if ($options['nullable'] ?? false) {
             $fieldDefinition .= '->nullable()';
         }
 
-        return $fieldDefinition.';';
+        return $fieldDefinition . ';';
     }
 
     /**

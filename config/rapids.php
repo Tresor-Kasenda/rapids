@@ -27,6 +27,7 @@ return [
             'factory' => __DIR__.'/../stubs/factory.stub',
             'seeder' => __DIR__.'/../stubs/seeder.stub',
             'alter' => __DIR__.'/../stubs/alter.stub',
+            'enum' => __DIR__.'/../stubs/enum.stub', // Add enum stub path
         ],
         'class' => [
             'Lists' => __DIR__.'/../stubs/livewire/livewire.lists.stub',
