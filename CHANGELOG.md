@@ -15,7 +15,7 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Mise à jour des dépendances pour inclure Laravel 12 explicitement
 - Mise à jour de orchestra/testbench pour support Laravel 12
 
-## [2.0.0] - 2025-05-04
+## [2.0.1] - 2025-05-04
 
 ### Ajouté
 - Support complet de toutes les relations Laravel, y compris:
